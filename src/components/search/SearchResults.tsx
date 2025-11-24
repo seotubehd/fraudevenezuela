@@ -1,0 +1,133 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { getCedula, CedulaData } from "@/lib/services/cedula";
+import { User } from "lucide-react";
+
+interface SearchResultsProps {
+    cedula: string;
+}
+
+export function SearchResults({ cedula }: SearchResultsProps) {
+    const router = useRouter();
+    const [loading, setLoading] = useState(true);
+    const [data, setData] = useState<CedulaData | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        async function fetchData() {
+            setLoading(true);
+            setError(null);
+            try {
+                const result = await getCedula(cedula);
+                setData(result);
+            } catch (err) {
+                console.error(err);
+                setError("Error al consultar la base de datos. Intente nuevamente.");
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        if (cedula) {
+            fetchData();
+        }
+    }, [cedula]);
+
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center min-h-[400px]">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#f59e0b]"></div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="max-w-2xl mx-auto bg-red-900/20 border border-red-500 rounded-lg p-6 text-center">
+                <p className="text-red-400">{error}</p>
+            </div>
+        );
+    }
+
+    if (!data) {
+        return (
+            <div className="max-w-2xl mx-auto bg-[#2a3544] border border-gray-700 rounded-lg p-6 text-center">
+                <p className="text-gray-400">No se encontraron datos para la cédula {cedula}</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="max-w-4xl mx-auto space-y-6">
+            {/* Header con nombre y botón reportar */}
+            <div className="flex items-center justify-between flex-wrap gap-4 pb-4 border-b border-gray-700">
+                <div className="flex items-center gap-3">
+                    <div className="bg-gray-700 p-2 rounded-full">
+                        <User className="h-6 w-6 text-gray-300" />
+                    </div>
+                    <div>
+                        <h2 className="text-2xl font-bold text-white uppercase">
+                            {data.nombre}
+                        </h2>
+                        <p className="text-sm text-gray-400">
+                            Datos para C.I. {data.cedula}
+                        </p>
+                    </div>
+                </div>
+                <Button
+                    onClick={() => router.push('/reportar')}
+                    className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6"
+                >
+                    Reportar Estafa
+                </Button>
+            </div>
+
+            {/* Contenido en dos columnas */}
+            <div className="grid md:grid-cols-2 gap-6">
+                {/* Columna izquierda: Información Personal */}
+                <div className="bg-[#2a3544] border border-gray-700 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-white mb-4">
+                        Información Personal
+                    </h3>
+                    <div className="space-y-4">
+                        <div className="flex justify-between py-2 border-b border-gray-700">
+                            <span className="text-gray-400 text-sm">Nombre Completo</span>
+                            <span className="text-white font-medium text-sm">{data.nombre}</span>
+                        </div>
+                        <div className="flex justify-between py-2 border-b border-gray-700">
+                            <span className="text-gray-400 text-sm">Cédula</span>
+                            <span className="text-white font-medium text-sm">{data.cedula}</span>
+                        </div>
+                        <div className="flex justify-between py-2 border-b border-gray-700">
+                            <span className="text-gray-400 text-sm">RIF</span>
+                            <span className="text-white font-medium text-sm">{data.cedula.replace('-', '')}</span>
+                        </div>
+                        <div className="flex justify-between py-2 border-b border-gray-700">
+                            <span className="text-gray-400 text-sm">Centro Electoral</span>
+                            <span className="text-white font-medium text-sm">{data.centro}</span>
+                        </div>
+                        <div className="flex justify-between py-2">
+                            <span className="text-gray-400 text-sm">Ubicación CNE</span>
+                            <span className="text-white font-medium text-sm">{data.estado}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Columna derecha: Reportes de Fraude */}
+                <div className="bg-[#1e3a3a] border border-gray-700 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-white mb-4">
+                        Reportes de Fraude
+                    </h3>
+                    <div className="text-center py-8">
+                        <p className="text-gray-400 text-sm">
+                            No se encontraron reportes de fraude para esta cédula.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
