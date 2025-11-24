@@ -1,17 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { getCedula, CedulaData } from "@/lib/services/cedula";
 import { User } from "lucide-react";
+import { ReportWizard } from "@/components/report/ReportWizard";
 
 interface SearchResultsProps {
     cedula: string;
 }
 
 export function SearchResults({ cedula }: SearchResultsProps) {
-    const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<CedulaData | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -77,12 +76,7 @@ export function SearchResults({ cedula }: SearchResultsProps) {
                         </p>
                     </div>
                 </div>
-                <Button
-                    onClick={() => router.push('/reportar')}
-                    className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6"
-                >
-                    Reportar Estafa
-                </Button>
+                <ReportWizard />
             </div>
 
             {/* Contenido en dos columnas */}
