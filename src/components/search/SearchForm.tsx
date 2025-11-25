@@ -21,7 +21,7 @@ export function SearchForm() {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (cedula.trim()) {
-            router.push(`/buscar?cedula=${nacionalidad}-${cedula.trim()}`);
+            router.push(`/${nacionalidad}${cedula.trim()}`);
         }
     };
 

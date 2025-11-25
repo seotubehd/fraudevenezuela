@@ -19,7 +19,11 @@ export function SearchResults({ cedula }: SearchResultsProps) {
             setLoading(true);
             setError(null);
             try {
-                const result = await getCedula(cedula);
+                const formattedCedula = cedula.includes('-') 
+                    ? cedula 
+                    : `${cedula.charAt(0)}-${cedula.slice(1)}`;
+
+                const result = await getCedula(formattedCedula);
                 setData(result);
             } catch (err) {
                 console.error(err);
