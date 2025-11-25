@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Check, Shield, FileText, Send, Users, Fingerprint, ShoppingCart, HelpCircle, XCircle, CheckCircle } from 'lucide-react';
+import { SocialNetworkModal } from './SocialNetworkModal';
 
 const steps = [
     { title: 'Datos del Estafador', description: 'Perfil o sitio web', icon: <Shield size={20} /> },
@@ -19,12 +20,12 @@ const StepProgress = ({ currentStep }: { currentStep: number }) => (
     <div className="flex justify-between items-start mb-8">
         {steps.map((step, index) => (
             <div key={index} className="flex-1 text-center relative">
-                <div className={`mx-auto h-12 w-12 rounded-full flex items-center justify-center border-2 ${currentStep >= index ? 'bg-yellow-500 border-yellow-400 text-black' : 'bg-gray-700 border-gray-600 text-gray-400'} transition-all duration-500`}>
+                <div className={`relative z-10 mx-auto h-12 w-12 rounded-full flex items-center justify-center border-2 ${currentStep >= index ? 'bg-yellow-500 border-yellow-400 text-black' : 'bg-gray-700 border-gray-600 text-gray-400'} transition-all duration-500`}>
                     {step.icon}
                 </div>
                 <p className={`text-xs mt-2 font-semibold hidden sm:block ${currentStep >= index ? 'text-white' : 'text-gray-500'}`}>{step.title}</p>
                 {index < steps.length - 1 && (
-                    <div className="absolute top-6 left-1/2 w-full h-0.5 bg-gray-600 sm:block hidden">
+                    <div className="absolute top-6 left-1/2 w-full h-0.5 bg-gray-600 z-0">
                         <div className="h-full bg-yellow-500 transition-all duration-500" style={{ width: currentStep > index ? '100%' : (currentStep === index ? '50%' : '0%') }}></div>
                     </div>
                 )}
@@ -40,6 +41,7 @@ export function ReportWizard() {
     const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [error, setError] = useState<string | null>(null);
     const [reportId, setReportId] = useState<string | null>(null);
+    const [scammerProfile, setScammerProfile] = useState<{ socialNetwork: string, profileUrl: string } | null>(null);
 
     const nextStep = () => setStep((prev) => (prev < steps.length - 1 ? prev + 1 : prev));
     const prevStep = () => setStep((prev) => (prev > 0 ? prev - 1 : prev));
@@ -49,6 +51,7 @@ export function ReportWizard() {
         setSubmissionStatus('idle');
         setError(null);
         setReportId(null);
+        setScammerProfile(null);
     };
 
     const handleOpenChange = (isOpen: boolean) => {
@@ -65,7 +68,7 @@ export function ReportWizard() {
 
         const formData = new FormData(e.currentTarget);
         const data = {
-            scammerInfo: formData.get('scammerInfo'),
+            scammerInfo: scammerProfile,
             scamType: formData.get('scamType'),
             description: formData.get('description'),
             evidence: formData.get('evidence'),
@@ -103,8 +106,22 @@ export function ReportWizard() {
                             <form onSubmit={handleSubmit} className="mt-6 sm:mt-8">
                                 {step === 0 && (
                                     <div className="grid gap-4 animate-fade-in">
-                                        <Label htmlFor="scammerInfo" className="text-base">Perfil de Red Social o Sitio Web del Estafador</Label>
-                                        <Input required id="scammerInfo" name="scammerInfo" placeholder="Ej: instagram.com/usuario, facebook.com/perfil, sitio-web-fraudulento.com" className="bg-gray-800 border-gray-600 text-base sm:text-lg p-3 sm:p-4" />
+                                        <Label className="text-base">Perfil de Red Social del Estafador</Label>
+                                        {scammerProfile ? (
+                                            <div className="flex items-center justify-between p-3 rounded-lg bg-gray-800 border border-gray-600">
+                                                <div>
+                                                    <p className="font-bold capitalize">{scammerProfile.socialNetwork}</p>
+                                                    <p className="text-sm text-gray-400">{scammerProfile.profileUrl}</p>
+                                                </div>
+                                                <Button variant="ghost" onClick={() => setScammerProfile(null)}>Cambiar</Button>
+                                            </div>
+                                        ) : (
+                                            <SocialNetworkModal onSave={setScammerProfile}>
+                                                <Button className="w-full justify-start p-6 text-left bg-gray-800 hover:bg-gray-700 border-gray-600 border">
+                                                    Seleccionar Red Social y Pegar URL
+                                                </Button>
+                                            </SocialNetworkModal>
+                                        )}
                                     </div>
                                 )}
                                 {step === 1 && (
@@ -163,7 +180,7 @@ export function ReportWizard() {
                                     </div>
                                     <div>
                                         {step < steps.length - 1 && (
-                                            <Button type="button" onClick={nextStep} className="bg-yellow-500 hover:bg-yellow-600 text-black px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg">
+                                            <Button type="button" onClick={nextStep} className="bg-yellow-500 hover:bg-yellow-600 text-black px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg" disabled={step === 0 && !scammerProfile}>
                                                 Siguiente
                                             </Button>
                                         )}

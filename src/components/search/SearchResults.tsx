@@ -1,7 +1,6 @@
-"use client";
+'use client';
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { getCedula, CedulaData } from "@/lib/services/cedula";
 import { User } from "lucide-react";
 import { ReportWizard } from "@/components/report/ReportWizard";
@@ -83,29 +82,29 @@ export function SearchResults({ cedula }: SearchResultsProps) {
             <div className="grid md:grid-cols-2 gap-6">
                 {/* Columna izquierda: Información Personal */}
                 <div className="bg-[#2a3544] border border-gray-700 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-white mb-4">
+                    <h3 className="text-lg font-semibold text-white mb-4 text-center md:text-left">
                         Información Personal
                     </h3>
                     <div className="space-y-4">
-                        <div className="flex justify-between py-2 border-b border-gray-700">
+                        <div className="flex flex-col md:flex-row md:justify-between py-2 border-b border-gray-700">
                             <span className="text-gray-400 text-sm">Nombre Completo</span>
-                            <span className="text-white font-medium text-sm">{data.nombre}</span>
+                            <span className="text-white font-medium text-sm md:text-right">{data.nombre}</span>
                         </div>
-                        <div className="flex justify-between py-2 border-b border-gray-700">
+                        <div className="flex flex-col md:flex-row md:justify-between py-2 border-b border-gray-700">
                             <span className="text-gray-400 text-sm">Cédula</span>
-                            <span className="text-white font-medium text-sm">{data.cedula}</span>
+                            <span className="text-white font-medium text-sm md:text-right">{data.cedula}</span>
                         </div>
-                        <div className="flex justify-between py-2 border-b border-gray-700">
+                        <div className="flex flex-col md:flex-row md:justify-between py-2 border-b border-gray-700">
                             <span className="text-gray-400 text-sm">RIF</span>
-                            <span className="text-white font-medium text-sm">{data.cedula.replace('-', '')}</span>
+                            <span className="text-white font-medium text-sm md:text-right">{data.cedula.replace('-', '')}</span>
                         </div>
-                        <div className="flex justify-between py-2 border-b border-gray-700">
+                        <div className="flex flex-col md:flex-row md:justify-between py-2 border-b border-gray-700">
                             <span className="text-gray-400 text-sm">Centro Electoral</span>
-                            <span className="text-white font-medium text-sm">{data.centro}</span>
+                            <span className="text-white font-medium text-sm md:text-right">{data.centro}</span>
                         </div>
-                        <div className="flex justify-between py-2">
+                        <div className="flex flex-col md:flex-row md:justify-between py-2">
                             <span className="text-gray-400 text-sm">Ubicación CNE</span>
-                            <span className="text-white font-medium text-sm">{data.estado}</span>
+                            <span className="text-white font-medium text-sm md:text-right">{data.estado}</span>
                         </div>
                     </div>
                 </div>
