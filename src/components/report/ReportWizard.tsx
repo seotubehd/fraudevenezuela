@@ -23,7 +23,7 @@ const StepProgress = ({ currentStep }: { currentStep: number }) => (
                 <div className={`relative z-10 mx-auto h-12 w-12 rounded-full flex items-center justify-center border-2 ${currentStep >= index ? 'bg-yellow-500 border-yellow-400 text-black' : 'bg-gray-700 border-gray-600 text-gray-400'} transition-all duration-500`}>
                     {step.icon}
                 </div>
-                <p className={`text-xs mt-2 font-semibold hidden sm:block ${currentStep >= index ? 'text-white' : 'text-gray-500'}`}>{step.title}</p>
+                <p className={`text-xs mt-2 font-semibold ${currentStep >= index ? 'text-white' : 'text-gray-500'}`}>{step.title}</p>
                 {index < steps.length - 1 && (
                     <div className="absolute top-6 left-1/2 w-full h-0.5 bg-gray-600 z-0">
                         <div className="h-full bg-yellow-500 transition-all duration-500" style={{ width: currentStep > index ? '100%' : (currentStep === index ? '50%' : '0%') }}></div>
@@ -89,7 +89,7 @@ export function ReportWizard() {
         <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
                 <Button className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-600 text-black font-bold animate-pulse">
-                    Reportar Estafa Online
+                    Reportar Estafa
                 </Button>
             </DialogTrigger>
             <DialogContent className="w-full max-w-2xl bg-[#1a2332] text-white border-gray-700 p-4 sm:p-6 md:p-8 sm:rounded-lg h-screen sm:h-auto sm:max-h-[90vh] overflow-y-auto">

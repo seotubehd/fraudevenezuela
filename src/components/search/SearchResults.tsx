@@ -75,7 +75,9 @@ export function SearchResults({ cedula }: SearchResultsProps) {
                         </p>
                     </div>
                 </div>
-                <ReportWizard />
+                <div className="hidden md:block">
+                    <ReportWizard />
+                </div>
             </div>
 
             {/* Contenido en dos columnas */}
@@ -106,6 +108,9 @@ export function SearchResults({ cedula }: SearchResultsProps) {
                             <span className="text-gray-400 text-sm">Ubicación CNE</span>
                             <span className="text-white font-medium text-sm md:text-right">{data.estado}</span>
                         </div>
+                    </div>
+                     <div className="block md:hidden mt-6">
+                        <ReportWizard />
                     </div>
                 </div>
 

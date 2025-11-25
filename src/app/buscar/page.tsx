@@ -17,9 +17,9 @@ export default async function BuscarPage({
                 <div className="container mx-auto">
                     <div className="text-center mb-6">
                         <h1 className="text-3xl md:text-4xl font-bold mb-1">
-                            <span className="text-[#f59e0b]">Fraude</span>
+                            <span className="text-yellow-500">Fraude</span>
                             <span className="text-white">Venezuela</span>
-                            <span className="text-[#f59e0b]">.info</span>
+                            <span className="text-yellow-500">.info</span>
                         </h1>
                         <p className="text-gray-400 text-sm">
                             Consulte Cédulas y Reporte Estafas
@@ -37,7 +37,7 @@ export default async function BuscarPage({
                     <Suspense
                         fallback={
                             <div className="flex justify-center items-center min-h-[400px]">
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#f59e0b]"></div>
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div>
                             </div>
                         }
                     >

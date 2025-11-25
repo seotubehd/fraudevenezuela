@@ -7,9 +7,9 @@ export default function Home() {
       <header className="py-12 px-4">
         <div className="container mx-auto text-center">
           <h1 className="text-5xl md:text-6xl font-bold mb-4 animate-fade-in-down">
-            <span className="text-[#f59e0b]">Fraude</span>
+            <span className="text-yellow-500">Fraude</span>
             <span className="text-white">Venezuela</span>
-            <span className="text-[#f59e0b]">.info</span>
+            <span className="text-yellow-500">.info</span>
           </h1>
           <p className="text-gray-300 text-lg md:text-xl animate-fade-in-up">
             Consulte Cédulas y Reporte Estafas de forma rápida y segura.
@@ -19,10 +19,8 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="flex-1 flex items-start justify-center px-4 pt-8">
-        <div className="w-full max-w-2xl transform transition-all duration-500 hover:scale-105">
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-lg p-8">
-            <SearchForm />
-          </div>
+        <div className="w-full max-w-2xl">
+          <SearchForm />
         </div>
       </main>
 
