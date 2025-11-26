@@ -33,7 +33,7 @@ export function ReportsTable({ initialReports }: ReportsTableProps) {
 
     const getStatusVariant = (status: ReportStatus) => {
         switch (status) {
-            case "aprobado": return "default";
+            case "aprobado": return "default"; // Changed from "success"
             case "rechazado": return "destructive";
             default: return "secondary";
         }
@@ -57,7 +57,7 @@ export function ReportsTable({ initialReports }: ReportsTableProps) {
                         <TableCell className="text-center">
                             <Badge variant={getStatusVariant(report.status)} className="capitalize">
                                 {report.status}
-                            </badge>
+                            </Badge>
                         </TableCell>
                         <TableCell className="text-right">
                             <DropdownMenu>
