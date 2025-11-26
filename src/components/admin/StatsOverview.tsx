@@ -1,48 +1,40 @@
-"use client";
+'use client';
 
-import { Report, ReportStatus } from "@/types/report";
+import { AdminReport } from "@/lib/services/admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, CheckCircle, XCircle } from 'lucide-react';
 
 interface StatsOverviewProps {
-    reports: Report[];
+    reports: AdminReport[];
 }
 
-export function StatsOverview({ reports }: StatsOverviewProps) {
-    const getCount = (status: ReportStatus) => reports.filter(r => r.estado === status).length;
+const statCards = [
+    { id: "total", title: "Reportes Totales" },
+    { id: "pending", title: "Reportes Pendientes" },
+    { id: "verified", title: "Reportes Aprobados" },
+    { id: "rejected", title: "Reportes Rechazados" },
+];
 
-    const stats = [
-        { 
-            title: "Pendientes", 
-            value: getCount("pendiente"), 
-            icon: Clock, 
-            color: "text-amber-500"
-        },
-        { 
-            title: "Aprobados", 
-            value: getCount("aprobado"), 
-            icon: CheckCircle, 
-            color: "text-green-500"
-        },
-        { 
-            title: "Denegados", 
-            value: getCount("denegado"), 
-            icon: XCircle,
-            color: "text-red-500"
-        },
-    ];
+export function StatsOverview({ reports }: StatsOverviewProps) {
+    const counts = {
+        total: reports.length,
+        pending: reports.filter(r => r.status === 'pending').length,
+        verified: reports.filter(r => r.status === 'verified').length,
+        rejected: reports.filter(r => r.status === 'rejected').length,
+    };
 
     return (
-        <div className="grid gap-4 md:grid-cols-3">
-            {stats.map((stat, index) => (
-                <Card key={index}>
-                    <CardHeader className="flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                        <stat.icon className={`h-4 w-4 ${stat.color}`} />
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {statCards.map(card => (
+                <Card key={card.id} className="bg-gray-800 border-gray-700 text-white text-center shadow-md hover:shadow-yellow-400/10 transition-shadow duration-300">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-base font-medium text-gray-300">
+                            {card.title}
+                        </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stat.value}</div>
-                        <p className="text-xs text-muted-foreground">Total de reportes</p>
+                        <div className="text-4xl font-bold text-white">
+                            {counts[card.id as keyof typeof counts]}
+                        </div>
                     </CardContent>
                 </Card>
             ))}

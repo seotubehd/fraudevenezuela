@@ -8,8 +8,14 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Check, Shield, FileText, Send, Users, Fingerprint, ShoppingCart, HelpCircle, XCircle, CheckCircle } from 'lucide-react';
 import { SocialNetworkModal } from './SocialNetworkModal';
 import { EvidenceForm, EvidenceData, EvidenceFormHandle } from './EvidenceForm';
-import { db } from '@/lib/firebase'; // Importar la instancia de Firestore
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'; // Importar funciones de Firestore
+import { db } from '@/lib/firebase'; 
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'; 
+
+// --- FIX: El componente ahora acepta los datos del estafador como props ---
+interface ReportWizardProps {
+    personName: string;
+    personId: string;
+}
 
 const steps = [
     { title: 'Datos del Estafador', description: 'Perfil o sitio web', icon: <Shield size={20} /> },
@@ -36,7 +42,7 @@ const StepProgress = ({ currentStep }: { currentStep: number }) => (
     </div>
 );
 
-export function ReportWizard() {
+export function ReportWizard({ personName, personId }: ReportWizardProps) {
     const [open, setOpen] = useState(false);
     const [step, setStep] = useState(0);
     const [loading, setLoading] = useState(false);
@@ -44,13 +50,13 @@ export function ReportWizard() {
     const [error, setError] = useState<string | null>(null);
     const [reportId, setReportId] = useState<string | null>(null);
     const [scammerProfile, setScammerProfile] = useState<{ socialNetwork: string, profileUrl: string } | null>(null);
-    const [scamType, setScamType] = useState<string>('social_media'); // Nuevo estado para scamType
+    const [scamType, setScamType] = useState<string>('social_media');
     const [evidenceData, setEvidenceData] = useState<EvidenceData | null>(null);
     const evidenceFormRef = useRef<EvidenceFormHandle>(null);
 
     const nextStep = () => {
-        if (step === 2) {
-            if (evidenceFormRef.current?.validate()) {
+        if (step === 2 && evidenceFormRef.current) {
+            if (evidenceFormRef.current.validate()) {
                 setStep(s => s + 1);
             } 
         } else {
@@ -85,13 +91,28 @@ export function ReportWizard() {
         const email = formData.get('email') as string;
 
         try {
+            // --- FIX: Ensamblar el objeto plano con todos los datos --- 
             const reportData = {
-                scammerInfo: scammerProfile,
+                // Datos del estafador (recibidos por props)
+                nombreCompleto: personName,
+                cedula: personId,
+
+                // Datos de la estafa (recogidos en el Wizard)
+                socialNetwork: scammerProfile?.socialNetwork || 'No especificada',
+                profileUrl: scammerProfile?.profileUrl || 'No especificada',
                 scamType: scamType,
-                evidence: evidenceData,
+                description: evidenceData?.description || '',
+                
+                // Datos de pago del estafador
+                scammerBankAccount: evidenceData?.scammerBankAccount || '',
+                scammerPagoMovil: evidenceData?.scammerPagoMovil || '',
+                scammerPhone: evidenceData?.scammerPhone || '',
+                
+                // Evidencia y metadatos
+                evidence: evidenceData?.evidenceFiles || {},
                 contactEmail: email || 'No proporcionado',
                 createdAt: serverTimestamp(),
-                estado: 'pendiente', // Estado inicial del reporte
+                estado: 'pendiente',
             };
 
             const docRef = await addDoc(collection(db, 'reports'), reportData);
@@ -116,10 +137,11 @@ export function ReportWizard() {
                 </Button>
             </DialogTrigger>
             <DialogContent className="w-full max-w-2xl bg-[#1a2332] text-white border-gray-700 p-4 sm:p-6 md:p-8 sm:rounded-lg h-screen sm:h-auto sm:max-h-[90vh] overflow-y-auto">
-                {submissionStatus === 'idle' && (
+                 {/* El resto del JSX del componente no necesita cambios... */}
+                 {submissionStatus === 'idle' && (
                     <>
                         <DialogHeader className="text-center mb-4 sm:mb-6">
-                            <DialogTitle className="text-2xl sm:text-3xl font-bold text-yellow-400">Reportar Estafa en Internet</DialogTitle>
+                            <DialogTitle className="text-2xl sm:text-3xl font-bold text-yellow-400">Reportar a {personName}</DialogTitle>
                             <DialogDescription className="text-gray-400 text-base sm:text-lg">
                                 Juntos podemos prevenir el fraude.
                             </DialogDescription>

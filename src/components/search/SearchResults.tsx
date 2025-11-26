@@ -79,8 +79,9 @@ export function SearchResults({ cedula }: SearchResultsProps) {
                         </p>
                     </div>
                 </div>
+                {/* --- FIX: Pasar datos del estafador al Wizard (vista desktop) --- */}
                 <div className="hidden md:block">
-                    <ReportWizard />
+                    <ReportWizard personName={data.nombre} personId={data.cedula} />
                 </div>
             </div>
 
@@ -113,8 +114,9 @@ export function SearchResults({ cedula }: SearchResultsProps) {
                             <span className="text-white font-medium text-sm md:text-right">{data.estado}</span>
                         </div>
                     </div>
+                    {/* --- FIX: Pasar datos del estafador al Wizard (vista mobile) --- */}
                      <div className="block md:hidden mt-6">
-                        <ReportWizard />
+                        <ReportWizard personName={data.nombre} personId={data.cedula} />
                     </div>
                 </div>
 

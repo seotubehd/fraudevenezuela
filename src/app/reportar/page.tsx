@@ -15,13 +15,15 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { createReport, uploadEvidence } from "@/lib/services/reports";
+import { createReport, uploadEvidence, ReportData } from "@/lib/services/reports"; // Importar ReportData
 
 export default function ReportarPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [files, setFiles] = useState<FileList | null>(null);
-    const [formData, setFormData] = useState({
+    // Inicializar el estado del formulario para que coincida con ReportData
+    const [formData, setFormData] = useState<Omit<ReportData, 'evidencias'>>({
+        nombreCompleto: "",
         cedula: "",
         tipo: "",
         descripcion: "",
@@ -29,8 +31,21 @@ export default function ReportarPage() {
         contacto: ""
     });
 
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { id, value } = e.target;
+        setFormData(prev => ({ ...prev, [id]: value }));
+    };
+
+    const handleSelectChange = (value: string) => {
+        setFormData(prev => ({ ...prev, tipo: value }));
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!formData.nombreCompleto || !formData.cedula || !formData.tipo || !formData.descripcion) {
+            alert("Por favor, complete todos los campos obligatorios.");
+            return;
+        }
         setLoading(true);
         try {
             let evidenciasUrls: string[] = [];
@@ -67,6 +82,18 @@ export default function ReportarPage() {
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            {/* --- CAMPO NUEVO: NOMBRE COMPLETO -- */}
+                            <div className="space-y-2">
+                                <Label htmlFor="nombreCompleto">Nombre Completo del Afectado</Label>
+                                <Input
+                                    id="nombreCompleto"
+                                    placeholder="Ej: María Pérez"
+                                    required
+                                    value={formData.nombreCompleto}
+                                    onChange={handleInputChange}
+                                />
+                            </div>
+                             {/* --- CAMPO CÉDULA --- */}
                             <div className="space-y-2">
                                 <Label htmlFor="cedula">Cédula Afectada</Label>
                                 <Input
@@ -74,26 +101,24 @@ export default function ReportarPage() {
                                     placeholder="V-12345678"
                                     required
                                     value={formData.cedula}
-                                    onChange={(e) => setFormData({ ...formData, cedula: e.target.value })}
+                                    onChange={handleInputChange}
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="tipo">Tipo de Irregularidad</Label>
-                                <Select
-                                    required
-                                    onValueChange={(value) => setFormData({ ...formData, tipo: value })}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Seleccione una opción" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="cambio_centro">Cambio de Centro no autorizado</SelectItem>
-                                        <SelectItem value="fallecido_activo">Persona fallecida activa</SelectItem>
-                                        <SelectItem value="datos_incorrectos">Datos personales incorrectos</SelectItem>
-                                        <SelectItem value="otro">Otro</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <Label htmlFor="tipo">Tipo de Irregularidad</Label>
+                            <Select required onValueChange={handleSelectChange}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Seleccione una opción" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="cambio_centro">Cambio de Centro no autorizado</SelectItem>
+                                    <SelectItem value="fallecido_activo">Persona fallecida activa</SelectItem>
+                                    <SelectItem value="datos_incorrectos">Datos personales incorrectos</SelectItem>
+                                    <SelectItem value="otro">Otro</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         <div className="space-y-2">
@@ -102,7 +127,7 @@ export default function ReportarPage() {
                                 id="ubicacion"
                                 placeholder="Nombre del centro o dirección"
                                 value={formData.ubicacion}
-                                onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
+                                onChange={handleInputChange}
                             />
                         </div>
 
@@ -114,7 +139,7 @@ export default function ReportarPage() {
                                 required
                                 className="min-h-[100px]"
                                 value={formData.descripcion}
-                                onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                                onChange={handleInputChange}
                             />
                         </div>
 
@@ -127,9 +152,6 @@ export default function ReportarPage() {
                                 accept="image/*,.pdf"
                                 onChange={(e) => setFiles(e.target.files)}
                             />
-                            <p className="text-xs text-muted-foreground">
-                                Puede subir múltiples archivos. Formatos permitidos: JPG, PNG, PDF.
-                            </p>
                         </div>
 
                         <div className="space-y-2">
@@ -139,11 +161,8 @@ export default function ReportarPage() {
                                 type="email"
                                 placeholder="correo@ejemplo.com"
                                 value={formData.contacto}
-                                onChange={(e) => setFormData({ ...formData, contacto: e.target.value })}
+                                onChange={handleInputChange}
                             />
-                            <p className="text-xs text-muted-foreground">
-                                Solo para verificar información si es necesario. No será público.
-                            </p>
                         </div>
 
                         <Button type="submit" className="w-full" disabled={loading}>
