@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { Report } from "@/types/report";
-import { AlertTriangle, Camera, ChevronLeft, ChevronRight } from "lucide-react";
+import { AlertTriangle, Camera, ChevronLeft, ChevronRight, X } from "lucide-react";
 
 interface ApprovedReportsProps {
     reports: Report[];
