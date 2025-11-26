@@ -9,7 +9,7 @@ interface StatsOverviewProps {
 }
 
 export function StatsOverview({ reports }: StatsOverviewProps) {
-    const getCount = (status: ReportStatus) => reports.filter(r => r.status === status).length;
+    const getCount = (status: ReportStatus) => reports.filter(r => r.estado === status).length;
 
     const stats = [
         { 
@@ -25,8 +25,8 @@ export function StatsOverview({ reports }: StatsOverviewProps) {
             color: "text-green-500"
         },
         { 
-            title: "Rechazados", 
-            value: getCount("rechazado"), 
+            title: "Denegados", 
+            value: getCount("denegado"), 
             icon: XCircle,
             color: "text-red-500"
         },
