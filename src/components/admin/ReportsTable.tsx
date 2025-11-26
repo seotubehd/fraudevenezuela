@@ -33,8 +33,8 @@ export function ReportsTable({ initialReports }: ReportsTableProps) {
 
     const getStatusVariant = (status: ReportStatus) => {
         switch (status) {
-            case "aprobado": return "default"; // Changed from "success"
-            case "rechazado": return "destructive";
+            case "aprobado": return "default";
+            case "denegado": return "destructive";
             default: return "secondary";
         }
     };
@@ -72,8 +72,8 @@ export function ReportsTable({ initialReports }: ReportsTableProps) {
                                     <DropdownMenuItem onClick={() => handleStatusChange(report.id, "aprobado")}>
                                         <Check className="mr-2 h-4 w-4 text-green-500"/> Aprobar
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleStatusChange(report.id, "rechazado")}>
-                                        <X className="mr-2 h-4 w-4 text-red-500"/> Rechazar
+                                    <DropdownMenuItem onClick={() => handleStatusChange(report.id, "denegado")}>
+                                        <X className="mr-2 h-4 w-4 text-red-500"/> Denegar
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
