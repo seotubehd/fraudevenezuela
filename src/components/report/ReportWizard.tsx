@@ -9,8 +9,9 @@ import { Check, Shield, FileText, Send, Users, Fingerprint, ShoppingCart, HelpCi
 import { SocialNetworkModal } from './SocialNetworkModal';
 import { EvidenceForm, EvidenceData, EvidenceFormHandle } from './EvidenceForm';
 import { db } from '@/lib/firebase'; 
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'; 
-import { uploadFilesAndGetURLs } from '@/lib/services/storage'; // FIX: Importar la función de subida
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+
+// No se necesita importar Report aquí porque estamos construyendo el objeto, no tipando una variable
 
 interface ReportWizardProps {
     personName: string;
@@ -91,30 +92,26 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
         const email = formData.get('email') as string;
 
         try {
-            // FIX: Subir archivos primero y obtener URLs
-            let evidenceUrls: string[] = [];
-            if (evidenceData?.evidenceFiles && evidenceData.evidenceFiles.length > 0) {
-                const reportIdPlaceholder = `report_${Date.now()}`;
-                evidenceUrls = await uploadFilesAndGetURLs(reportIdPlaceholder, evidenceData.evidenceFiles);
-            }
-            
-            // FIX: Ensamblar el objeto con la estructura de datos correcta
+            // FIX: Align with the global Report type from types/report.ts
+            const evidenceUrls = evidenceData?.evidenceLinks.split(/[ ,\n]+/).filter(Boolean) || [];
+
             const reportData = {
                 nombreCompleto: personName,
                 cedula: personId,
                 socialNetwork: scammerProfile?.socialNetwork || 'No especificada',
                 profileUrl: scammerProfile?.profileUrl || 'No especificada',
                 scamType: scamType,
-                description: evidenceData?.description || '',
+                // FIX: Use `descripcion` from the aligned EvidenceData
+                descripcion: evidenceData?.descripcion || '',
                 scammerBankAccount: evidenceData?.scammerBankAccount || '',
                 scammerPagoMovil: evidenceData?.scammerPagoMovil || '',
                 scammerPhone: evidenceData?.scammerPhone || '',
                 
-                // FIX: Usar los nombres de campo y datos correctos
-                evidencias: evidenceUrls, // Usar las URLs obtenidas
+                // FIX: Use `evidencias` (plural) as defined in the master type
+                evidencias: evidenceUrls, 
                 contactEmail: email || 'No proporcionado',
                 createdAt: serverTimestamp(),
-                status: 'pending', // Corregir el nombre del campo y el valor
+                status: 'pending',
             };
 
             const docRef = await addDoc(collection(db, 'reports'), reportData);
@@ -139,7 +136,6 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
                 </Button>
             </DialogTrigger>
             <DialogContent className="w-full max-w-2xl bg-[#1a2332] text-white border-gray-700 p-4 sm:p-6 md:p-8 sm:rounded-lg h-screen sm:h-auto sm:max-h-[90vh] overflow-y-auto">
-                 {/* El resto del JSX del componente no necesita cambios... */}
                  {submissionStatus === 'idle' && (
                     <>
                         <DialogHeader className="text-center mb-4 sm:mb-6">
@@ -177,8 +173,8 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
                                         <RadioGroup 
                                             required 
                                             name="scamType" 
-                                            value={scamType} // Controlar el valor con el estado
-                                            onValueChange={setScamType} // Actualizar el estado
+                                            value={scamType}
+                                            onValueChange={setScamType}
                                             className="grid grid-cols-2 gap-2 sm:gap-4"
                                         >
                                              <Label className="flex flex-col items-center justify-center gap-2 p-3 sm:p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer border-2 border-transparent has-[:checked]:border-yellow-500 has-[:checked]:bg-gray-700">
@@ -246,7 +242,7 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
                         </div>
                     </>
                 )}
-                {submissionStatus === 'success' && (
+                 {submissionStatus === 'success' && (
                     <div className="flex flex-col items-center justify-center text-center py-10 animate-fade-in">
                          <CheckCircle className="h-16 w-16 text-green-500 mb-4" />
                          <h2 className="text-2xl font-bold text-white mb-2">¡Reporte Enviado con Éxito!</h2>

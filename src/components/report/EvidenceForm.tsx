@@ -6,8 +6,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertCircle, FileText, Link, Phone, Landmark, PiggyBank } from 'lucide-react';
 
+// FIX: Align with the global Report type from types/report.ts
 export interface EvidenceData {
-    description: string;
+    descripcion: string;
     evidenceLinks: string;
     scammerPhone: string;
     scammerPagoMovil: string;
@@ -23,8 +24,9 @@ export interface EvidenceFormHandle {
 }
 
 const EvidenceForm = forwardRef<EvidenceFormHandle, EvidenceFormProps>(({ onChange }, ref) => {
+    // FIX: Use `descripcion` to match the new data structure
     const [formData, setFormData] = useState<EvidenceData>({
-        description: '',
+        descripcion: '',
         evidenceLinks: '',
         scammerPhone: '',
         scammerPagoMovil: '',
@@ -47,8 +49,9 @@ const EvidenceForm = forwardRef<EvidenceFormHandle, EvidenceFormProps>(({ onChan
 
     const validate = () => {
         const newErrors: Record<string, string> = {};
-        if (!formData.description.trim()) {
-            newErrors.description = 'La descripción no puede estar vacía.';
+        // FIX: Validate `descripcion`
+        if (!formData.descripcion.trim()) {
+            newErrors.descripcion = 'La descripción no puede estar vacía.';
         }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -71,21 +74,22 @@ const EvidenceForm = forwardRef<EvidenceFormHandle, EvidenceFormProps>(({ onChan
                     </AccordionTrigger>
                     <AccordionContent className="px-6 pb-6 pt-2 bg-black/20">
                         <div className="grid gap-2">
-                            <Label htmlFor="description" className="sr-only">Descripción</Label>
+                            {/* FIX: Use `descripcion` in form elements */}
+                            <Label htmlFor="descripcion" className="sr-only">Descripción</Label>
                             <Textarea
                                 required
-                                id="description"
-                                name="description"
-                                value={formData.description}
+                                id="descripcion"
+                                name="descripcion"
+                                value={formData.descripcion}
                                 onChange={handleChange}
                                 placeholder="Describe con el mayor detalle posible cómo ocurrió la estafa. Incluye fechas, montos, modus operandi, etc."
                                 rows={6}
                                 className={inputStyles}
                             />
-                            {errors.description && (
+                            {errors.descripcion && (
                                 <div className="flex items-center gap-2 text-red-400 text-sm mt-2">
                                     <AlertCircle size={16} />
-                                    <span>{errors.description}</span>
+                                    <span>{errors.descripcion}</span>
                                 </div>
                             )}
                         </div>
