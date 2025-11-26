@@ -1,13 +1,13 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Check, Shield, FileText, Send, Users, Fingerprint, ShoppingCart, HelpCircle, XCircle, CheckCircle } from 'lucide-react';
 import { SocialNetworkModal } from './SocialNetworkModal';
+import { EvidenceForm, EvidenceData, EvidenceFormHandle } from './EvidenceForm';
 
 const steps = [
     { title: 'Datos del Estafador', description: 'Perfil o sitio web', icon: <Shield size={20} /> },
@@ -42,8 +42,19 @@ export function ReportWizard() {
     const [error, setError] = useState<string | null>(null);
     const [reportId, setReportId] = useState<string | null>(null);
     const [scammerProfile, setScammerProfile] = useState<{ socialNetwork: string, profileUrl: string } | null>(null);
+    const [evidenceData, setEvidenceData] = useState<EvidenceData | null>(null);
+    const evidenceFormRef = useRef<EvidenceFormHandle>(null);
 
-    const nextStep = () => setStep((prev) => (prev < steps.length - 1 ? prev + 1 : prev));
+
+    const nextStep = () => {
+        if (step === 2) {
+            if (evidenceFormRef.current?.validate()) {
+                setStep(s => s + 1);
+            } 
+        } else {
+            setStep(s => s + 1);
+        }
+    };
     const prevStep = () => setStep((prev) => (prev > 0 ? prev - 1 : prev));
 
     const resetForm = () => {
@@ -52,6 +63,7 @@ export function ReportWizard() {
         setError(null);
         setReportId(null);
         setScammerProfile(null);
+        setEvidenceData(null);
     };
 
     const handleOpenChange = (isOpen: boolean) => {
@@ -70,16 +82,13 @@ export function ReportWizard() {
         const data = {
             scammerInfo: scammerProfile,
             scamType: formData.get('scamType'),
-            description: formData.get('description'),
-            evidence: formData.get('evidence'),
+            evidence: evidenceData,
             email: formData.get('email'),
         };
 
-        // Simulate a successful API call for UI/UX demonstration purposes
-        console.log("Simulating report submission with data:", data);
+        console.log("Submitting report:", data);
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
-        // Directly set to success state, bypassing the actual API call for now.
         setSubmissionStatus('success');
         setReportId(`REP-${Date.now()}`);
         setLoading(false);
@@ -128,7 +137,7 @@ export function ReportWizard() {
                                     <div className="animate-fade-in">
                                         <Label className="text-base text-center block mb-4">Tipo de Estafa</Label>
                                         <RadioGroup required name="scamType" defaultValue="social_media" className="grid grid-cols-2 gap-2 sm:gap-4">
-                                            <Label className="flex flex-col items-center justify-center gap-2 p-3 sm:p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer border-2 border-transparent has-[:checked]:border-yellow-500 has-[:checked]:bg-gray-700">
+                                             <Label className="flex flex-col items-center justify-center gap-2 p-3 sm:p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer border-2 border-transparent has-[:checked]:border-yellow-500 has-[:checked]:bg-gray-700">
                                                 <Users className="h-7 w-7 sm:h-8 sm:w-8 text-yellow-400" />
                                                 <span className="text-center text-xs sm:text-sm">Estafa en Redes Sociales</span>
                                                 <RadioGroupItem value="social_media" id="social_media" className="sr-only" />
@@ -152,12 +161,10 @@ export function ReportWizard() {
                                     </div>
                                 )}
                                 {step === 2 && (
-                                    <div className="grid gap-4 animate-fade-in">
-                                        <Label htmlFor="description" className="text-base">Descripción Detallada</Label>
-                                        <Textarea required id="description" name="description" placeholder="Describe con el mayor detalle posible cómo ocurrió la estafa. Incluye fechas, montos, modus operandi, etc." rows={5} className="bg-gray-800 border-gray-600 text-base" />
-                                        <Label htmlFor="evidence" className="text-base">Enlaces de Evidencia (Capturas, Videos)</Label>
-                                        <Input id="evidence" name="evidence" placeholder="Pega aquí los enlaces a las pruebas (Imgur, Google Drive, etc.)" className="bg-gray-800 border-gray-600" />
-                                    </div>
+                                    <EvidenceForm 
+                                        ref={evidenceFormRef}
+                                        onChange={setEvidenceData} 
+                                    />
                                 )}
                                 {step === 3 && (
                                     <div className="grid gap-4 animate-fade-in text-center">
@@ -180,7 +187,7 @@ export function ReportWizard() {
                                     </div>
                                     <div>
                                         {step < steps.length - 1 && (
-                                            <Button type="button" onClick={nextStep} className="bg-yellow-500 hover:bg-yellow-600 text-black px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg" disabled={step === 0 && !scammerProfile}>
+                                            <Button type="button" onClick={nextStep} className="bg-yellow-500 hover:bg-yellow-600 text-black px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg" disabled={(step === 0 && !scammerProfile)}>
                                                 Siguiente
                                             </Button>
                                         )}
