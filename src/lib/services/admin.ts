@@ -9,18 +9,31 @@ const REPORTS_COLLECTION = "reports";
  * Fetches all reports from Firestore, ordered by creation date.
  */
 export async function getAllReports(): Promise<Report[]> {
-    const q = query(collection(db, REPORTS_COLLECTION), orderBy("fechaCreacion", "desc"));
+    // CORRECCIÓN: Ordenar por 'createdAt' en lugar de 'fechaCreacion'.
+    const q = query(collection(db, REPORTS_COLLECTION), orderBy("createdAt", "desc"));
     const querySnapshot = await getDocs(q);
     
     return querySnapshot.docs.map(doc => {
         const data = doc.data();
+
+        // CORRECCIÓN: Mapear la nueva estructura de datos a la que espera el componente de la tabla.
+        // Esto actúa como una capa de adaptación.
+        const evidenceData = data.evidence || {};
+        const scammerInfoData = data.scammerInfo || {};
+
         return {
             id: doc.id,
-            cedula: data.cedula,
-            descripcion: data.descripcion,
-            evidencia: data.evidencia,
+            // Adaptamos los nuevos campos a los que la tabla espera
+            cedula: scammerInfoData.profileUrl || 'No disponible',
+            descripcion: evidenceData.scamDescription || 'No disponible',
+            evidencia: evidenceData.proof ? (Array.isArray(evidenceData.proof) ? evidenceData.proof.join(', ') : evidenceData.proof) : 'No disponible',
             estado: data.estado,
-            fechaCreacion: (data.fechaCreacion as Timestamp).toDate().toISOString(),
+            // Usar el campo de fecha correcto 'createdAt'
+            fechaCreacion: data.createdAt ? (data.createdAt as Timestamp).toDate().toISOString() : new Date().toISOString(),
+            // Incluir los nuevos campos por si se necesitan en el futuro
+            scammerInfo: scammerInfoData,
+            scamType: data.scamType,
+            contactEmail: data.contactEmail,
         } as Report;
     });
 }
@@ -33,5 +46,6 @@ export async function getAllReports(): Promise<Report[]> {
  */
 export async function updateReportStatus(reportId: string, newStatus: ReportStatus): Promise<void> {
     const reportRef = doc(db, REPORTS_COLLECTION, reportId);
+    // CORRECCIÓN: Asegurarse de que el campo a actualizar sea 'estado'.
     await updateDoc(reportRef, { estado: newStatus });
 }
