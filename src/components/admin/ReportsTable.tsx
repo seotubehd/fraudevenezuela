@@ -26,7 +26,6 @@ export function ReportsTable({ initialReports }: ReportsTableProps) {
             );
         } catch (error) {
             console.error("Failed to update status:", error);
-            // Optionally, show an error message to the user
         } finally {
             setLoading(prev => ({ ...prev, [reportId]: false }));
         }
@@ -34,7 +33,7 @@ export function ReportsTable({ initialReports }: ReportsTableProps) {
 
     const getStatusVariant = (status: ReportStatus) => {
         switch (status) {
-            case "aprobado": return "success";
+            case "aprobado": return "default";
             case "rechazado": return "destructive";
             default: return "secondary";
         }
