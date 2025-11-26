@@ -9,18 +9,18 @@ const REPORTS_COLLECTION = "reports";
  * Fetches all reports from Firestore, ordered by creation date.
  */
 export async function getAllReports(): Promise<Report[]> {
-    const q = query(collection(db, REPORTS_COLLECTION), orderBy("createdAt", "desc"));
+    const q = query(collection(db, REPORTS_COLLECTION), orderBy("fechaCreacion", "desc"));
     const querySnapshot = await getDocs(q);
     
     return querySnapshot.docs.map(doc => {
         const data = doc.data();
-        // Make sure createdAt is a serializable format (e.g., ISO string)
-        // Firestore Timestamps need to be converted.
         return {
             id: doc.id,
-            ...
-            data,
-            createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
+            cedula: data.cedula,
+            descripcion: data.descripcion,
+            evidencia: data.evidencia,
+            estado: data.estado,
+            fechaCreacion: (data.fechaCreacion as Timestamp).toDate().toISOString(),
         } as Report;
     });
 }
@@ -33,5 +33,5 @@ export async function getAllReports(): Promise<Report[]> {
  */
 export async function updateReportStatus(reportId: string, newStatus: ReportStatus): Promise<void> {
     const reportRef = doc(db, REPORTS_COLLECTION, reportId);
-    await updateDoc(reportRef, { status: newStatus });
+    await updateDoc(reportRef, { estado: newStatus });
 }

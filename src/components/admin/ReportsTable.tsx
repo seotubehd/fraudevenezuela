@@ -22,7 +22,7 @@ export function ReportsTable({ initialReports }: ReportsTableProps) {
         try {
             await updateReportStatus(reportId, newStatus);
             setReports(prev => 
-                prev.map(r => r.id === reportId ? { ...r, status: newStatus } : r)
+                prev.map(r => r.id === reportId ? { ...r, estado: newStatus } : r)
             );
         } catch (error) {
             console.error("Failed to update status:", error);
@@ -55,8 +55,8 @@ export function ReportsTable({ initialReports }: ReportsTableProps) {
                         <TableCell className="font-mono">{report.cedula}</TableCell>
                         <TableCell className="max-w-sm truncate">{report.descripcion}</TableCell>
                         <TableCell className="text-center">
-                            <Badge variant={getStatusVariant(report.status)} className="capitalize">
-                                {report.status}
+                            <Badge variant={getStatusVariant(report.estado)} className="capitalize">
+                                {report.estado}
                             </Badge>
                         </TableCell>
                         <TableCell className="text-right">
