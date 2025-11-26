@@ -8,6 +8,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Check, Shield, FileText, Send, Users, Fingerprint, ShoppingCart, HelpCircle, XCircle, CheckCircle } from 'lucide-react';
 import { SocialNetworkModal } from './SocialNetworkModal';
 import { EvidenceForm, EvidenceData, EvidenceFormHandle } from './EvidenceForm';
+import { db } from '@/lib/firebase'; // Importar la instancia de Firestore
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'; // Importar funciones de Firestore
 
 const steps = [
     { title: 'Datos del Estafador', description: 'Perfil o sitio web', icon: <Shield size={20} /> },
@@ -42,9 +44,9 @@ export function ReportWizard() {
     const [error, setError] = useState<string | null>(null);
     const [reportId, setReportId] = useState<string | null>(null);
     const [scammerProfile, setScammerProfile] = useState<{ socialNetwork: string, profileUrl: string } | null>(null);
+    const [scamType, setScamType] = useState<string>('social_media'); // Nuevo estado para scamType
     const [evidenceData, setEvidenceData] = useState<EvidenceData | null>(null);
     const evidenceFormRef = useRef<EvidenceFormHandle>(null);
-
 
     const nextStep = () => {
         if (step === 2) {
@@ -64,6 +66,7 @@ export function ReportWizard() {
         setReportId(null);
         setScammerProfile(null);
         setEvidenceData(null);
+        setScamType('social_media');
     };
 
     const handleOpenChange = (isOpen: boolean) => {
@@ -79,19 +82,30 @@ export function ReportWizard() {
         setError(null);
 
         const formData = new FormData(e.currentTarget);
-        const data = {
-            scammerInfo: scammerProfile,
-            scamType: formData.get('scamType'),
-            evidence: evidenceData,
-            email: formData.get('email'),
-        };
+        const email = formData.get('email') as string;
 
-        console.log("Submitting report:", data);
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+        try {
+            const reportData = {
+                scammerInfo: scammerProfile,
+                scamType: scamType,
+                evidence: evidenceData,
+                contactEmail: email || 'No proporcionado',
+                createdAt: serverTimestamp(),
+                estado: 'pendiente', // Estado inicial del reporte
+            };
 
-        setSubmissionStatus('success');
-        setReportId(`REP-${Date.now()}`);
-        setLoading(false);
+            const docRef = await addDoc(collection(db, 'reports'), reportData);
+            console.log("Report submitted with ID: ", docRef.id);
+
+            setReportId(docRef.id);
+            setSubmissionStatus('success');
+        } catch (err) {
+            console.error("Error adding document: ", err);
+            setError('Ocurrió un error al guardar el reporte. Por favor, inténtalo de nuevo.');
+            setSubmissionStatus('error');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -136,7 +150,13 @@ export function ReportWizard() {
                                 {step === 1 && (
                                     <div className="animate-fade-in">
                                         <Label className="text-base text-center block mb-4">Tipo de Estafa</Label>
-                                        <RadioGroup required name="scamType" defaultValue="social_media" className="grid grid-cols-2 gap-2 sm:gap-4">
+                                        <RadioGroup 
+                                            required 
+                                            name="scamType" 
+                                            value={scamType} // Controlar el valor con el estado
+                                            onValueChange={setScamType} // Actualizar el estado
+                                            className="grid grid-cols-2 gap-2 sm:gap-4"
+                                        >
                                              <Label className="flex flex-col items-center justify-center gap-2 p-3 sm:p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer border-2 border-transparent has-[:checked]:border-yellow-500 has-[:checked]:bg-gray-700">
                                                 <Users className="h-7 w-7 sm:h-8 sm:w-8 text-yellow-400" />
                                                 <span className="text-center text-xs sm:text-sm">Estafa en Redes Sociales</span>
