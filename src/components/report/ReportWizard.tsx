@@ -10,8 +10,8 @@ import { SocialNetworkModal } from './SocialNetworkModal';
 import { EvidenceForm, EvidenceData, EvidenceFormHandle } from './EvidenceForm';
 import { db } from '@/lib/firebase'; 
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'; 
+import { uploadFilesAndGetURLs } from '@/lib/services/storage'; // FIX: Importar la función de subida
 
-// --- FIX: El componente ahora acepta los datos del estafador como props ---
 interface ReportWizardProps {
     personName: string;
     personId: string;
@@ -91,28 +91,30 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
         const email = formData.get('email') as string;
 
         try {
-            // --- FIX: Ensamblar el objeto plano con todos los datos --- 
+            // FIX: Subir archivos primero y obtener URLs
+            let evidenceUrls: string[] = [];
+            if (evidenceData?.evidenceFiles && evidenceData.evidenceFiles.length > 0) {
+                const reportIdPlaceholder = `report_${Date.now()}`;
+                evidenceUrls = await uploadFilesAndGetURLs(reportIdPlaceholder, evidenceData.evidenceFiles);
+            }
+            
+            // FIX: Ensamblar el objeto con la estructura de datos correcta
             const reportData = {
-                // Datos del estafador (recibidos por props)
                 nombreCompleto: personName,
                 cedula: personId,
-
-                // Datos de la estafa (recogidos en el Wizard)
                 socialNetwork: scammerProfile?.socialNetwork || 'No especificada',
                 profileUrl: scammerProfile?.profileUrl || 'No especificada',
                 scamType: scamType,
                 description: evidenceData?.description || '',
-                
-                // Datos de pago del estafador
                 scammerBankAccount: evidenceData?.scammerBankAccount || '',
                 scammerPagoMovil: evidenceData?.scammerPagoMovil || '',
                 scammerPhone: evidenceData?.scammerPhone || '',
                 
-                // Evidencia y metadatos
-                evidence: evidenceData?.evidenceFiles || {},
+                // FIX: Usar los nombres de campo y datos correctos
+                evidencias: evidenceUrls, // Usar las URLs obtenidas
                 contactEmail: email || 'No proporcionado',
                 createdAt: serverTimestamp(),
-                estado: 'pendiente',
+                status: 'pending', // Corregir el nombre del campo y el valor
             };
 
             const docRef = await addDoc(collection(db, 'reports'), reportData);
