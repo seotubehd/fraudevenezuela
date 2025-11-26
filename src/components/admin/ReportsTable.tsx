@@ -19,7 +19,7 @@ interface ReportsTableProps {
 function ReportCard({ report, onOpenModal }: { report: AdminReport; onOpenModal: (report: AdminReport) => void; }) {
     const getStatusVariant = (status: AdminReport['status']) => {
         switch (status) {
-            case "verified": return "success";
+            case "verified": return "default"; // FIX: Changed "success" to "default" to match available Badge variants
             case "rejected": return "destructive";
             default: return "secondary";
         }
