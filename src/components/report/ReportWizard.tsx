@@ -1,17 +1,16 @@
 'use client';
 import { useState, useRef } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Check, Shield, FileText, Send, Users, Fingerprint, ShoppingCart, HelpCircle, XCircle, CheckCircle } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Check, Shield, FileText, Send, Users, Fingerprint, ShoppingCart, HelpCircle, XCircle, CheckCircle, UserCheck } from 'lucide-react';
 import { SocialNetworkModal } from './SocialNetworkModal';
-import { EvidenceForm, EvidenceData, EvidenceFormHandle } from './EvidenceForm';
-import { db } from '@/lib/firebase'; 
+import { EvidenceForm, EvidenceData } from './EvidenceForm';
+import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-
-// No se necesita importar Report aquí porque estamos construyendo el objeto, no tipando una variable
 
 interface ReportWizardProps {
     personName: string;
@@ -19,10 +18,10 @@ interface ReportWizardProps {
 }
 
 const steps = [
-    { title: 'Datos del Estafador', description: 'Perfil o sitio web', icon: <Shield size={20} /> },
-    { title: 'Tipo de Estafa', description: 'Seleccione la modalidad', icon: <FileText size={20} /> },
-    { title: 'Evidencia', description: 'Detalles y pruebas', icon: <Check size={20} /> },
-    { title: 'Revisión y Envío', description: 'Confirmar reporte', icon: <Send size={20} /> },
+    { title: 'Perfil del Estafador', icon: <Shield size={20} /> },
+    { title: 'Tipo de Estafa', icon: <FileText size={20} /> },
+    { title: 'Evidencia', icon: <Check size={20} /> },
+    { title: 'Tu Identidad', icon: <UserCheck size={20} /> },
 ];
 
 const StepProgress = ({ currentStep }: { currentStep: number }) => (
@@ -53,18 +52,31 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
     const [scammerProfile, setScammerProfile] = useState<{ socialNetwork: string, profileUrl: string } | null>(null);
     const [scamType, setScamType] = useState<string>('social_media');
     const [evidenceData, setEvidenceData] = useState<EvidenceData | null>(null);
-    const evidenceFormRef = useRef<EvidenceFormHandle>(null);
+    const [isEvidenceFormValid, setIsEvidenceFormValid] = useState(false);
+
+    const [isAnonymous, setIsAnonymous] = useState(true);
+    const [reporterName, setReporterName] = useState('');
 
     const nextStep = () => {
-        if (step === 2 && evidenceFormRef.current) {
-            if (evidenceFormRef.current.validate()) {
-                setStep(s => s + 1);
-            } 
-        } else {
-            setStep(s => s + 1);
+        if (step === 0) {
+            if (!scammerProfile || !scammerProfile.socialNetwork || !scammerProfile.profileUrl) {
+                alert('Por favor, selecciona una red social y proporciona una URL de perfil.');
+                return;
+            }
         }
+        if (step === 1) {
+            if (!scamType) {
+                alert('Por favor, selecciona un tipo de estafa.');
+                return;
+            }
+        }
+        if (step === 2 && !isEvidenceFormValid) {
+             alert('Por favor, completa la información de evidencia requerida.');
+            return;
+        }
+        setStep(s => s + 1);
     };
-    const prevStep = () => setStep((prev) => (prev > 0 ? prev - 1 : prev));
+    const prevStep = () => setStep(s => s - 1);
 
     const resetForm = () => {
         setStep(0);
@@ -74,49 +86,50 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
         setScammerProfile(null);
         setEvidenceData(null);
         setScamType('social_media');
+        setIsAnonymous(true);
+        setReporterName('');
+        setIsEvidenceFormValid(false);
     };
 
     const handleOpenChange = (isOpen: boolean) => {
-        if (!isOpen) {
-            resetForm();
-        }
+        if (!isOpen) resetForm();
         setOpen(isOpen);
     }
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+
+        if (step !== steps.length - 1) {
+            return;
+        }
+
+        if (!isAnonymous && !reporterName.trim()) {
+            alert('Por favor, introduce tu nombre o selecciona la opción de denuncia anónima para enviar el reporte.');
+            return;
+        }
         setLoading(true);
         setError(null);
 
-        const formData = new FormData(e.currentTarget);
-        const email = formData.get('email') as string;
-
         try {
-            // FIX: Align with the global Report type from types/report.ts
-            const evidenceUrls = evidenceData?.evidenceLinks.split(/[ ,\n]+/).filter(Boolean) || [];
+            const evidenceUrls = evidenceData?.evidenceLinks.split(/[ ,\n]+/).filter(link => link.trim() !== '') || [];
 
             const reportData = {
-                nombreCompleto: personName,
                 cedula: personId,
+                nombreCompleto: personName,
                 socialNetwork: scammerProfile?.socialNetwork || 'No especificada',
                 profileUrl: scammerProfile?.profileUrl || 'No especificada',
                 scamType: scamType,
-                // FIX: Use `descripcion` from the aligned EvidenceData
                 descripcion: evidenceData?.descripcion || '',
                 scammerBankAccount: evidenceData?.scammerBankAccount || '',
                 scammerPagoMovil: evidenceData?.scammerPagoMovil || '',
                 scammerPhone: evidenceData?.scammerPhone || '',
-                
-                // FIX: Use `evidencias` (plural) as defined in the master type
-                evidencias: evidenceUrls, 
-                contactEmail: email || 'No proporcionado',
+                evidencias: evidenceUrls,
+                reporterName: isAnonymous ? 'Anónimo' : reporterName.trim(),
                 createdAt: serverTimestamp(),
-                status: 'pending',
+                estado: 'pending',
             };
 
             const docRef = await addDoc(collection(db, 'reports'), reportData);
-            console.log("Report submitted with ID: ", docRef.id);
-
             setReportId(docRef.id);
             setSubmissionStatus('success');
         } catch (err) {
@@ -127,6 +140,14 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
             setLoading(false);
         }
     };
+    
+    const isNextDisabled = (
+        (step === 0 && (!scammerProfile || !scammerProfile.socialNetwork || !scammerProfile.profileUrl)) ||
+        (step === 1 && !scamType) ||
+        (step === 2 && !isEvidenceFormValid)
+    );
+
+    const isSubmitDisabled = loading || (!isAnonymous && !reporterName.trim());
 
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -141,7 +162,7 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
                         <DialogHeader className="text-center mb-4 sm:mb-6">
                             <DialogTitle className="text-2xl sm:text-3xl font-bold text-yellow-400">Reportar a {personName}</DialogTitle>
                             <DialogDescription className="text-gray-400 text-base sm:text-lg">
-                                Juntos podemos prevenir el fraude.
+                                Tu colaboración es clave para un entorno más seguro.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="py-4">
@@ -156,11 +177,11 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
                                                     <p className="font-bold capitalize">{scammerProfile.socialNetwork}</p>
                                                     <p className="text-sm text-gray-400">{scammerProfile.profileUrl}</p>
                                                 </div>
-                                                <Button variant="ghost" onClick={() => setScammerProfile(null)}>Cambiar</Button>
+                                                <Button type="button" variant="ghost" onClick={() => setScammerProfile(null)}>Cambiar</Button>
                                             </div>
                                         ) : (
                                             <SocialNetworkModal onSave={setScammerProfile}>
-                                                <Button className="w-full justify-start p-6 text-left bg-gray-800 hover:bg-gray-700 border-gray-600 border">
+                                                <Button type="button" className="w-full justify-start p-6 text-left bg-gray-800 hover:bg-gray-700 border-gray-600 border">
                                                     Seleccionar Red Social y Pegar URL
                                                 </Button>
                                             </SocialNetworkModal>
@@ -168,76 +189,54 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
                                     </div>
                                 )}
                                 {step === 1 && (
-                                    <div className="animate-fade-in">
-                                        <Label className="text-base text-center block mb-4">Tipo de Estafa</Label>
-                                        <RadioGroup 
-                                            required 
-                                            name="scamType" 
-                                            value={scamType}
-                                            onValueChange={setScamType}
-                                            className="grid grid-cols-2 gap-2 sm:gap-4"
-                                        >
-                                             <Label className="flex flex-col items-center justify-center gap-2 p-3 sm:p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer border-2 border-transparent has-[:checked]:border-yellow-500 has-[:checked]:bg-gray-700">
-                                                <Users className="h-7 w-7 sm:h-8 sm:w-8 text-yellow-400" />
-                                                <span className="text-center text-xs sm:text-sm">Estafa en Redes Sociales</span>
-                                                <RadioGroupItem value="social_media" id="social_media" className="sr-only" />
-                                            </Label>
-                                            <Label className="flex flex-col items-center justify-center gap-2 p-3 sm:p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer border-2 border-transparent has-[:checked]:border-yellow-500 has-[:checked]:bg-gray-700">
-                                                <Fingerprint className="h-7 w-7 sm:h-8 sm:w-8 text-yellow-400" />
-                                                <span className="text-center text-xs sm:text-sm">Phishing / Suplantación</span>
-                                                <RadioGroupItem value="phishing" id="phishing" className="sr-only" />
-                                            </Label>
-                                            <Label className="flex flex-col items-center justify-center gap-2 p-3 sm:p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer border-2 border-transparent has-[:checked]:border-yellow-500 has-[:checked]:bg-gray-700">
-                                                <ShoppingCart className="h-7 w-7 sm:h-8 sm:w-8 text-yellow-400" />
-                                                <span className="text-center text-xs sm:text-sm">Venta Fraudulenta</span>
-                                                <RadioGroupItem value="fraudulent_sale" id="fraudulent_sale" className="sr-only" />
-                                            </Label>
-                                            <Label className="flex flex-col items-center justify-center gap-2 p-3 sm:p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer border-2 border-transparent has-[:checked]:border-yellow-500 has-[:checked]:bg-gray-700">
-                                                <HelpCircle className="h-7 w-7 sm:h-8 sm:w-8 text-yellow-400" />
-                                                <span className="text-center text-xs sm:text-sm">Otro tipo</span>
-                                                <RadioGroupItem value="other" id="other" className="sr-only" />
-                                            </Label>
+                                     <div className="animate-fade-in">
+                                        <Label className="text-base text-center block mb-4">¿Cuál fue la modalidad de la estafa?</Label>
+                                        <RadioGroup required name="scamType" value={scamType} onValueChange={setScamType} className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-4">
+                                             <Label className="flex flex-col items-center justify-center gap-2 p-3 sm:p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer border-2 border-transparent has-[:checked]:border-yellow-500"><Users className="h-7 w-7 sm:h-8 sm:w-8 text-yellow-400" /> <span className="text-center text-xs sm:text-sm">Estafa en Redes Sociales</span> <RadioGroupItem value="social_media" className="sr-only" /></Label>
+                                             <Label className="flex flex-col items-center justify-center gap-2 p-3 sm:p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer border-2 border-transparent has-[:checked]:border-yellow-500"><Fingerprint className="h-7 w-7 sm:h-8 sm:w-8 text-yellow-400" /> <span className="text-center text-xs sm:text-sm">Phishing / Suplantación</span> <RadioGroupItem value="phishing" className="sr-only" /></Label>
+                                             <Label className="flex flex-col items-center justify-center gap-2 p-3 sm:p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer border-2 border-transparent has-[:checked]:border-yellow-500"><ShoppingCart className="h-7 w-7 sm:h-8 sm:w-8 text-yellow-400" /> <span className="text-center text-xs sm:text-sm">Venta Fraudulenta</span> <RadioGroupItem value="fraudulent_sale" className="sr-only" /></Label>
+                                             <Label className="flex flex-col items-center justify-center gap-2 p-3 sm:p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer border-2 border-transparent has-[:checked]:border-yellow-500"><HelpCircle className="h-7 w-7 sm:h-8 sm:w-8 text-yellow-400" /> <span className="text-center text-xs sm:text-sm">Otro tipo</span> <RadioGroupItem value="other" className="sr-only" /></Label>
                                         </RadioGroup>
                                     </div>
                                 )}
                                 {step === 2 && (
-                                    <EvidenceForm 
-                                        ref={evidenceFormRef}
-                                        onChange={setEvidenceData} 
-                                    />
+                                    <EvidenceForm onChange={setEvidenceData} onValidationChange={setIsEvidenceFormValid} />
                                 )}
                                 {step === 3 && (
-                                    <div className="grid gap-4 animate-fade-in text-center">
-                                        <Label htmlFor="email" className="text-base">Tu Email de Contacto (Opcional)</Label>
-                                        <Input id="email" name="email" type="email" placeholder="tucorreo@example.com" className="bg-gray-800 border-gray-600 max-w-sm mx-auto" />
-                                        <div className="text-sm text-gray-400 bg-gray-800/50 p-4 rounded-lg border border-yellow-400/30 mt-4 max-w-lg mx-auto">
+                                    <div className="animate-fade-in space-y-6 text-center">
+                                        <div className="flex items-center justify-center space-x-3 bg-gray-800/50 p-4 rounded-lg border border-gray-700 max-w-md mx-auto">
+                                            <Switch id="anonymous-switch" checked={isAnonymous} onCheckedChange={setIsAnonymous} />
+                                            <Label htmlFor="anonymous-switch" className="text-base cursor-pointer">Realizar denuncia anónima</Label>
+                                        </div>
+                                        {!isAnonymous && (
+                                            <div className="animate-fade-in">
+                                                <Label htmlFor="reporterName" className="text-base">Tu Nombre Completo</Label>
+                                                <Input required id="reporterName" name="reporterName" value={reporterName} onChange={(e) => setReporterName(e.target.value)} placeholder="Ej: Juan Pérez" className="bg-gray-800 border-gray-600 max-w-sm mx-auto mt-2" />
+                                            </div>
+                                        )}
+                                         <div className="text-sm text-gray-400 bg-gray-800/50 p-4 rounded-lg border border-yellow-400/30 max-w-lg mx-auto">
                                             <p className="font-bold text-yellow-400 text-base mb-2">Proceso de Revisión</p>
-                                            <p>Tu reporte será enviado de forma <strong>anónima</strong>. Nuestro equipo evaluará la evidencia y, si es aprobado, se hará público para alertar a la comunidad. <strong>Tu identidad nunca será revelada.</strong></p>
+                                            <p>Tu reporte será revisado por nuestro equipo. Si es aprobado, se hará público para alertar a la comunidad. {isAnonymous ? 'Tu identidad no será revelada.' : 'El nombre que proporcionaste será visible en el reporte.'}</p>
                                         </div>
                                     </div>
                                 )}
-
-                                <div className="mt-8 sm:mt-10 flex justify-between items-center">
+                                
+                                <DialogFooter className="mt-8 sm:mt-10 flex justify-between items-center">
+                                    <Button type="button" onClick={prevStep} className={`bg-yellow-500 hover:bg-yellow-600 text-black px-4 sm:px-6 ${step === 0 ? 'invisible' : ''}`}>
+                                        Anterior
+                                    </Button>
                                     <div>
-                                        {step > 0 && (
-                                            <Button type="button" onClick={prevStep} className="bg-yellow-500 hover:bg-yellow-600 text-black px-4 sm:px-6">
-                                                Anterior
-                                            </Button>
-                                        )}
-                                    </div>
-                                    <div>
-                                        {step < steps.length - 1 && (
-                                            <Button type="button" onClick={nextStep} className="bg-yellow-500 hover:bg-yellow-600 text-black px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg" disabled={(step === 0 && !scammerProfile)}>
+                                        {step < steps.length - 1 ? (
+                                            <Button type="button" onClick={nextStep} className="bg-yellow-500 hover:bg-yellow-600 text-black px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg" disabled={isNextDisabled}>
                                                 Siguiente
                                             </Button>
-                                        )}
-                                        {step === steps.length - 1 && (
-                                            <Button type="submit" className="bg-green-500 hover:bg-green-600 text-white px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg" disabled={loading}>
+                                        ) : (
+                                            <Button type="submit" className="bg-green-500 hover:bg-green-600 text-white px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg disabled:opacity-50" disabled={isSubmitDisabled}>
                                                 {loading ? 'Enviando...' : 'Confirmar y Enviar Reporte'}
                                             </Button>
                                         )}
                                     </div>
-                                </div>
+                                </DialogFooter>
                             </form>
                         </div>
                     </>
@@ -246,11 +245,13 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
                     <div className="flex flex-col items-center justify-center text-center py-10 animate-fade-in">
                          <CheckCircle className="h-16 w-16 text-green-500 mb-4" />
                          <h2 className="text-2xl font-bold text-white mb-2">¡Reporte Enviado con Éxito!</h2>
-                         <p className="text-gray-400 mb-4">Gracias por tu colaboración. Tu reporte ha sido recibido.</p>
+                         <p className="text-gray-400 mb-4">Gracias por tu colaboración. Tu reporte ha sido recibido y será revisado.</p>
                          <p className="text-sm text-gray-500">ID del Reporte: <strong className="text-yellow-400">{reportId}</strong></p>
-                        <Button onClick={() => handleOpenChange(false)} className="mt-8 bg-yellow-500 hover:bg-yellow-600 text-black">
-                             Cerrar
-                         </Button>
+                        <DialogClose asChild>
+                            <Button className="mt-8 bg-yellow-500 hover:bg-yellow-600 text-black">
+                                 Cerrar
+                            </Button>
+                        </DialogClose>
                      </div>
                 )}
                 {submissionStatus === 'error' && (
@@ -262,9 +263,11 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
                             <Button onClick={resetForm} variant="outline" className="border-gray-600 hover:bg-gray-700 text-gray-300 hover:text-white">
                                 Intentar de Nuevo
                             </Button>
-                            <Button onClick={() => handleOpenChange(false)} className="bg-yellow-500 hover:bg-yellow-600 text-black">
-                                Cerrar
-                            </Button>
+                            <DialogClose asChild>
+                                <Button className="bg-yellow-500 hover:bg-yellow-600 text-black">
+                                    Cerrar
+                                </Button>
+                            </DialogClose>
                         </div>
                     </div>
                 )}

@@ -1,109 +1,96 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Facebook, Instagram, Twitter, Youtube, Twitch, Globe, User } from 'lucide-react';
-
-// Custom TikTok Icon using SVG path
-const TikTokIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12.235 4.312a1 1 0 0 1 1-1h2.53a1 1 0 0 1 1 1v13.37a1 1 0 0 1-1 1h-2.53a1 1 0 0 1-1-1v-2.583c-1.33.27-2.733.418-4.235.418-4.518 0-8.204-3.64-8.204-8.152S3.482 1.215 8 1.215c1.502 0 2.904.148 4.235.418V4.312zm-4.235 2.37a3.877 3.877 0 0 0-.25-.013c-2.073 0-3.754 1.68-3.754 3.752s1.681 3.752 3.754 3.752c.084 0 .167-.005.25-.013v-7.478z"/>
-    </svg>
-);
-
-const socialNetworks = [
-    { id: 'facebook', name: 'Facebook', icon: <Facebook /> },
-    { id: 'instagram', name: 'Instagram', icon: <Instagram /> },
-    { id: 'twitter', name: 'Twitter', icon: <Twitter /> },
-    { id: 'tiktok', name: 'TikTok', icon: <TikTokIcon /> },
-    { id: 'youtube', name: 'YouTube', icon: <Youtube /> },
-    { id: 'twitch', name: 'Twitch', icon: <Twitch /> },
-    { id: 'personalmente', name: 'Personalmente', icon: <User /> },
-    { id: 'other', name: 'Otro', icon: <Globe /> },
-];
+import {
+  Facebook,
+  Instagram,
+  Twitter,
+  Youtube,
+  Globe,
+} from 'lucide-react';
 
 interface SocialNetworkModalProps {
-    onSave: (data: { socialNetwork: string, profileUrl: string }) => void;
-    children: React.ReactNode;
+  children: React.ReactNode;
+  onSave: (data: { socialNetwork: string; profileUrl: string }) => void;
 }
 
-export function SocialNetworkModal({ onSave, children }: SocialNetworkModalProps) {
-    const [open, setOpen] = useState(false);
-    const [selectedSocialNetwork, setSelectedSocialNetwork] = useState<string | null>(null);
-    const [profileUrl, setProfileUrl] = useState('');
+const socialNetworks = [
+  { name: 'Facebook', icon: <Facebook className="w-6 h-6" /> },
+  { name: 'Instagram', icon: <Instagram className="w-6 h-6" /> },
+  { name: 'Twitter', icon: <Twitter className="w-6 h-6" /> },
+  { name: 'Youtube', icon: <Youtube className="w-6 h-6" /> },
+  { name: 'Otro', icon: <Globe className="w-6 h-6" /> },
+];
 
-    const isUrlDisabled = selectedSocialNetwork === 'personalmente';
+export function SocialNetworkModal({
+  children,
+  onSave,
+}: SocialNetworkModalProps) {
+  const [selectedNetwork, setSelectedNetwork] = useState<string>('');
+  const [profileUrl, setProfileUrl] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
 
-    useEffect(() => {
-        if (isUrlDisabled) {
-            setProfileUrl('');
-        }
-    }, [selectedSocialNetwork, isUrlDisabled]);
+  const handleSave = () => {
+    onSave({ socialNetwork: selectedNetwork, profileUrl });
+    setIsOpen(false);
+  };
 
-    const handleSave = () => {
-        if (selectedSocialNetwork) {
-            onSave({ 
-                socialNetwork: selectedSocialNetwork, 
-                profileUrl: isUrlDisabled ? 'Personalmente' : profileUrl 
-            });
-            setOpen(false);
-            setSelectedSocialNetwork(null);
-            setProfileUrl('');
-        }
-    };
-
-    return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                {children}
-            </DialogTrigger>
-            <DialogContent className="w-full max-w-lg bg-[#1a2332] text-white border-gray-700 p-4 sm:p-6 sm:rounded-lg">
-                <DialogHeader className="text-center mb-4">
-                    <DialogTitle className="text-xl sm:text-2xl font-bold text-yellow-400">Seleccionar Red Social</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4">
-                    <Label className="text-base">Red Social</Label>
-                    <RadioGroup
-                        className="grid grid-cols-3 sm:grid-cols-4 gap-2"
-                        value={selectedSocialNetwork || ''}
-                        onValueChange={setSelectedSocialNetwork}
-                    >
-                        {socialNetworks.map((network) => {
-                            const isSelected = selectedSocialNetwork === network.id;
-                            return (
-                                <Label
-                                    key={network.id}
-                                    className={`flex flex-col items-center justify-center gap-2 p-3 rounded-lg transition-colors cursor-pointer border-2 ${isSelected ? 'bg-yellow-500 text-black border-yellow-500' : 'bg-gray-800 border-transparent hover:bg-gray-700'}`}>
-                                    {network.icon}
-                                    <span className="text-xs text-center">{network.name}</span>
-                                    <RadioGroupItem value={network.id} id={network.id} className="sr-only" />
-                                </Label>
-                            );
-                        })}
-                    </RadioGroup>
-                    <Label htmlFor="profileUrl" className="text-base mt-2">URL o Perfil del Estafador</Label>
-                    <Input
-                        id="profileUrl"
-                        placeholder="Ej: instagram.com/usuario"
-                        className="bg-gray-800 border-gray-600 text-base"
-                        value={profileUrl}
-                        onChange={(e) => setProfileUrl(e.target.value)}
-                        disabled={isUrlDisabled}
-                    />
-                </div>
-                <div className="mt-6 flex justify-end">
-                    <Button
-                        onClick={handleSave}
-                        className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-6 py-3"
-                        disabled={!selectedSocialNetwork || (!isUrlDisabled && !profileUrl)}
-                    >
-                        Guardar
-                    </Button>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent className="w-full max-w-sm bg-[#1a2332] text-white border-gray-700 p-4 sm:rounded-lg">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold text-yellow-400">Agregar Perfil de Red Social</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-1 gap-2">
+            <Label htmlFor="social-network" className="text-base text-gray-300">Red Social</Label>
+            <RadioGroup
+              defaultValue={selectedNetwork}
+              onValueChange={setSelectedNetwork}
+              className="grid grid-cols-2 gap-2 sm:grid-cols-3"
+            >
+              {socialNetworks.map((network) => (
+                <Label
+                  key={network.name}
+                  htmlFor={network.name}
+                  className={`flex flex-col items-center justify-center p-3 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer border-2 ${selectedNetwork === network.name.toLowerCase()
+                      ? 'border-yellow-500 text-yellow-400'
+                      : 'border-gray-600 text-gray-400'}`}
+                >
+                  {network.icon}
+                  <span className="mt-2 text-xs sm:text-sm">{network.name}</span>
+                  <RadioGroupItem
+                    value={network.name.toLowerCase()}
+                    id={network.name}
+                    className="sr-only"
+                  />
+                </Label>
+              ))}
+            </RadioGroup>
+          </div>
+          <div className="grid grid-cols-1 gap-2">
+            <Label htmlFor="profile-url" className="text-base text-gray-300">URL del Perfil</Label>
+            <Input
+              id="profile-url"
+              value={profileUrl}
+              onChange={(e) => setProfileUrl(e.target.value)}
+              placeholder="https://ejemplo.com/perfil"
+              className="bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+            />
+          </div>
+        </div>
+        <DialogFooter className="mt-4">
+          <DialogClose asChild>
+            <Button type="button" variant="outline" className="border-gray-600 hover:bg-gray-700 text-gray-300 hover:text-white">Cancelar</Button>
+          </DialogClose>
+          <Button type="button" onClick={handleSave} className="bg-yellow-500 hover:bg-yellow-600 text-black">Guardar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }

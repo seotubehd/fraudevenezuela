@@ -1,12 +1,10 @@
 'use client';
-import { useState, forwardRef, useImperativeHandle } from 'react';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { AlertCircle, FileText, Link, Phone, Landmark, PiggyBank } from 'lucide-react';
 
-// FIX: Align with the global Report type from types/report.ts
 export interface EvidenceData {
     descripcion: string;
     evidenceLinks: string;
@@ -17,14 +15,10 @@ export interface EvidenceData {
 
 interface EvidenceFormProps {
     onChange: (data: EvidenceData) => void;
+    onValidationChange: (isValid: boolean) => void;
 }
 
-export interface EvidenceFormHandle {
-    validate: () => boolean;
-}
-
-const EvidenceForm = forwardRef<EvidenceFormHandle, EvidenceFormProps>(({ onChange }, ref) => {
-    // FIX: Use `descripcion` to match the new data structure
+const EvidenceForm = ({ onChange, onValidationChange }: EvidenceFormProps) => {
     const [formData, setFormData] = useState<EvidenceData>({
         descripcion: '',
         evidenceLinks: '',
@@ -34,116 +28,100 @@ const EvidenceForm = forwardRef<EvidenceFormHandle, EvidenceFormProps>(({ onChan
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        const newData = { ...formData, [name]: value };
-        setFormData(newData);
-        onChange(newData);
-        
-        if (errors[name]) {
-            const newErrors = { ...errors };
-            delete newErrors[name];
-            setErrors(newErrors);
-        }
-    };
-
-    const validate = () => {
+    const validate = useCallback(() => {
         const newErrors: Record<string, string> = {};
-        // FIX: Validate `descripcion`
         if (!formData.descripcion.trim()) {
-            newErrors.descripcion = 'La descripción no puede estar vacía.';
+            newErrors.descripcion = 'La descripción de la estafa es obligatoria.';
         }
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
+        if (formData.evidenceLinks.trim() && !/^(https?:\/\/[^\s,]+(\s*,\s*https?:\/\/[^\s,]+)*)?$/.test(formData.evidenceLinks.trim())) {
+            newErrors.evidenceLinks = 'Los enlaces de evidencia deben ser URLs válidas separadas por comas.';
+        }
+        return newErrors;
+    }, [formData]);
+
+    useEffect(() => {
+        onChange(formData);
+        const validationErrors = validate();
+        setErrors(validationErrors);
+        onValidationChange(Object.keys(validationErrors).length === 0);
+    }, [formData, onChange, onValidationChange, validate]);
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
     };
-
-    useImperativeHandle(ref, () => ({ validate }));
-
-    const inputStyles = "bg-gray-900/70 border-gray-700 focus-visible:ring-yellow-500 focus-visible:ring-offset-gray-900";
-    const itemStyles = "border border-gray-700/80 rounded-xl bg-gray-800/40 overflow-hidden transition-all";
 
     return (
-        <div className="w-full space-y-4 animate-fade-in">
-            <Accordion type="single" collapsible defaultValue="item-1" className="w-full space-y-3">
-                <AccordionItem value="item-1" className={itemStyles}>
-                    <AccordionTrigger className="text-lg font-semibold text-yellow-400 px-6 py-4 hover:no-underline hover:bg-gray-700/20 data-[state=open]:bg-gray-700/30">
-                        <div className="flex items-center gap-3">
-                            <FileText className="h-5 w-5" />
-                            Descripción Detallada
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-6 pb-6 pt-2 bg-black/20">
-                        <div className="grid gap-2">
-                            {/* FIX: Use `descripcion` in form elements */}
-                            <Label htmlFor="descripcion" className="sr-only">Descripción</Label>
-                            <Textarea
-                                required
-                                id="descripcion"
-                                name="descripcion"
-                                value={formData.descripcion}
-                                onChange={handleChange}
-                                placeholder="Describe con el mayor detalle posible cómo ocurrió la estafa. Incluye fechas, montos, modus operandi, etc."
-                                rows={6}
-                                className={inputStyles}
-                            />
-                            {errors.descripcion && (
-                                <div className="flex items-center gap-2 text-red-400 text-sm mt-2">
-                                    <AlertCircle size={16} />
-                                    <span>{errors.descripcion}</span>
-                                </div>
-                            )}
-                        </div>
-                    </AccordionContent>
-                </AccordionItem>
+        <div className="animate-fade-in space-y-6">
+            <div>
+                <Label htmlFor="descripcion" className="text-base text-gray-300">Descripción de la estafa <span className="text-red-500">*</span></Label>
+                <Textarea
+                    id="descripcion"
+                    name="descripcion"
+                    value={formData.descripcion}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="Describe brevemente cómo ocurrió la estafa..."
+                    className="mt-2 bg-gray-800 border-gray-600 text-white placeholder-gray-500 min-h-[100px]"
+                />
+                {errors.descripcion && <p className="text-red-500 text-sm mt-1">{errors.descripcion}</p>}
+            </div>
 
-                <AccordionItem value="item-2" className={itemStyles}>
-                     <AccordionTrigger className="text-lg font-semibold text-yellow-400 px-6 py-4 hover:no-underline hover:bg-gray-700/20 data-[state=open]:bg-gray-700/30">
-                        <div className="flex items-center gap-3">
-                            <Link className="h-5 w-5" />
-                            Pruebas Adicionales
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-6 pb-6 pt-2 bg-black/20">
-                        <div className="grid gap-3">
-                            <div>
-                                <Label htmlFor="evidenceLinks" className="text-gray-300 mb-2 block">Enlaces de Evidencia (Capturas, etc.)</Label>
-                                <Input id="evidenceLinks" name="evidenceLinks" value={formData.evidenceLinks} onChange={handleChange} placeholder="Pega aquí los enlaces (Imgur, Google Drive, etc.)" className={inputStyles} />
-                            </div>
-                        </div>
-                    </AccordionContent>
-                </AccordionItem>
+            <div>
+                <Label htmlFor="evidenceLinks" className="text-base text-gray-300">Enlaces de evidencia (opcional)</Label>
+                <Input
+                    id="evidenceLinks"
+                    name="evidenceLinks"
+                    value={formData.evidenceLinks}
+                    onChange={handleInputChange}
+                    placeholder="URLs separadas por comas (ej: imgur.com/a1, drive.google.com/b2)"
+                    className="mt-2 bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                />
+                {errors.evidenceLinks && <p className="text-red-500 text-sm mt-1">{errors.evidenceLinks}</p>}
+            </div>
 
-                <AccordionItem value="item-3" className={itemStyles}>
-                     <AccordionTrigger className="text-lg font-semibold text-yellow-400 px-6 py-4 hover:no-underline hover:bg-gray-700/20 data-[state=open]:bg-gray-700/30">
-                        <div className="flex items-center gap-3">
-                            <PiggyBank className="h-5 w-5" />
-                            Información de Pago del Estafador
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-6 pb-6 pt-2 bg-black/20">
-                        <div className="grid gap-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <Label htmlFor="scammerPhone" className="flex items-center gap-2 text-gray-300 mb-2"><Phone size={16}/>Teléfono</Label>
-                                    <Input id="scammerPhone" name="scammerPhone" value={formData.scammerPhone} onChange={handleChange} placeholder="Número de teléfono" className={inputStyles} />
-                                </div>
-                                <div>
-                                    <Label htmlFor="scammerPagoMovil" className="flex items-center gap-2 text-gray-300 mb-2"><PiggyBank size={16}/>Pago Móvil</Label>
-                                    <Input id="scammerPagoMovil" name="scammerPagoMovil" value={formData.scammerPagoMovil} onChange={handleChange} placeholder="Datos de pago móvil" className={inputStyles} />
-                                </div>
-                            </div>
-                            <div>
-                                <Label htmlFor="scammerBankAccount" className="flex items-center gap-2 text-gray-300 mb-2"><Landmark size={16}/>Cuenta Bancaria</Label>
-                                <Input id="scammerBankAccount" name="scammerBankAccount" value={formData.scammerBankAccount} onChange={handleChange} placeholder="Número de cuenta bancaria" className={inputStyles} />
-                            </div>
-                        </div>
-                    </AccordionContent>
-                </AccordionItem>
-            </Accordion>
+            <h3 className="text-lg font-semibold text-yellow-400 mt-8">Datos de Contacto del Estafador (Opcional)</h3>
+            <p className="text-sm text-gray-400 mb-4">Proporciona cualquier dato adicional para identificar al estafador.</p>
+
+            <div>
+                <Label htmlFor="scammerPhone" className="text-base text-gray-300">Número de Teléfono</Label>
+                <Input
+                    id="scammerPhone"
+                    name="scammerPhone"
+                    value={formData.scammerPhone}
+                    onChange={handleInputChange}
+                    placeholder="Ej: +584121234567"
+                    className="mt-2 bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                />
+            </div>
+
+            <div>
+                <Label htmlFor="scammerPagoMovil" className="text-base text-gray-300">Pago Móvil</Label>
+                <Input
+                    id="scammerPagoMovil"
+                    name="scammerPagoMovil"
+                    value={formData.scammerPagoMovil}
+                    onChange={handleInputChange}
+                    placeholder="Ej: 04121234567-V12345678"
+                    className="mt-2 bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                />
+            </div>
+
+            <div>
+                <Label htmlFor="scammerBankAccount" className="text-base text-gray-300">Número de Cuenta Bancaria</Label>
+                <Input
+                    id="scammerBankAccount"
+                    name="scammerBankAccount"
+                    value={formData.scammerBankAccount}
+                    onChange={handleInputChange}
+                    placeholder="Ej: 01020304050607080910"
+                    className="mt-2 bg-gray-800 border-gray-600 text-white placeholder-gray-500"
+                />
+            </div>
         </div>
     );
-});
+};
 
-EvidenceForm.displayName = "EvidenceForm";
+EvidenceForm.displayName = 'EvidenceForm';
 
 export { EvidenceForm };
