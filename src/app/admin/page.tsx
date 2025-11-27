@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '@/lib/firebase';
-import { getAllReports, AdminReport } from "@/lib/services/admin"; 
+import { getAdminReports, AdminReport } from "@/lib/services/admin"; 
 import { StatsOverview } from "@/components/admin/StatsOverview";
 import { ReportsTable } from "@/components/admin/ReportsTable";
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,7 @@ export default function AdminPage() {
 
     useEffect(() => {
         if (user) {
-            getAllReports()
+            getAdminReports()
                 .then(setReports)
                 .catch(err => console.error("Error fetching reports: ", err))
                 .finally(() => setInitialLoading(false));

@@ -16,10 +16,50 @@ interface ReportsTableProps {
     onReportUpdate: (reportId: string, newStatus: AdminReport['status']) => void;
 }
 
+// Componente para mostrar un solo item de detalle en el modal
+function DetailItem({ label, value, icon, isLink = false, isTextArea = false }: { label: string; value?: string; icon?: React.ReactNode, isLink?: boolean, isTextArea?: boolean }) {
+    // Para campos que NO son de contacto, si no tienen valor, no los mostramos.
+    const isOptionalField = !["Nombre", "Email", "WhatsApp"].includes(label);
+    if (!value && isOptionalField) {
+        return null;
+    }
+
+    return (
+        <div className="flex flex-col gap-1.5">
+            <Label className="text-sm font-semibold text-gray-400 flex items-center gap-2">
+                {icon} {label}
+            </Label>
+            {isTextArea ? (
+                <p className="text-sm text-gray-200 bg-black/20 p-3 rounded-md whitespace-pre-wrap border border-gray-700/50">
+                    {value || 'No proporcionado'}
+                </p>
+            ) : isLink ? (
+                 <a 
+                    href={value || '#'} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className={`text-sm text-yellow-400 font-mono bg-black/20 p-2 rounded-md truncate hover:text-yellow-300 border border-gray-700/50 block ${!value ? 'text-gray-500 pointer-events-none' : ''}`}>
+                    {value || 'No proporcionado'}
+                </a>
+            ) : (
+                <p className={`text-sm font-mono bg-black/20 p-2 rounded-md border border-gray-700/50 ${!value ? 'text-gray-500' : 'text-gray-200'}`}>
+                    {value || 'No proporcionado'}
+                </p>
+            )}
+        </div>
+    );
+}
+
+// Componente para el título de una sección en el modal
+function SectionTitle({ children }: { children: React.ReactNode }) {
+    return <h3 className="font-bold text-lg text-yellow-500 border-b-2 border-yellow-500/30 pb-2 mb-3">{children}</h3>;
+}
+
+// Componente para la tarjeta de un reporte
 function ReportCard({ report, onOpenModal }: { report: AdminReport; onOpenModal: (report: AdminReport) => void; }) {
     const getStatusVariant = (status: AdminReport['status']) => {
         switch (status) {
-            case "verified": return "default"; // FIX: Changed "success" to "default" to match available Badge variants
+            case "verified": return "default";
             case "rejected": return "destructive";
             default: return "secondary";
         }
@@ -50,6 +90,7 @@ function ReportCard({ report, onOpenModal }: { report: AdminReport; onOpenModal:
     );
 }
 
+// Componente principal de la tabla de reportes
 export function ReportsTable({ reports, onReportUpdate }: ReportsTableProps) {
     const [filter, setFilter] = useState<"all" | AdminReport['status']>('pending');
     const [searchQuery, setSearchQuery] = useState("");
@@ -109,8 +150,7 @@ export function ReportsTable({ reports, onReportUpdate }: ReportsTableProps) {
                                 onClick={() => setFilter(status as any)} 
                                 className={`capitalize transition-colors duration-200 border ${filter === status 
                                     ? 'bg-yellow-500 text-black border-yellow-500 hover:bg-yellow-600' 
-                                    : 'bg-gray-900 text-gray-300 border-gray-700 hover:bg-gray-700'}`}
-                            >
+                                    : 'bg-gray-900 text-gray-300 border-gray-700 hover:bg-gray-700'}`}>
                                 {status}
                             </Button>
                         ))}
@@ -127,7 +167,6 @@ export function ReportsTable({ reports, onReportUpdate }: ReportsTableProps) {
                  <p className="text-center text-gray-400 py-8">No se encontraron reportes con los filtros actuales.</p>
             )}
 
-            {/* --- MODAL REBUILD --- */}
             {selectedReport && (
                 <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
                     <DialogContent className="max-w-4xl bg-gray-900 border-gray-700 text-white font-sans">
@@ -142,35 +181,39 @@ export function ReportsTable({ reports, onReportUpdate }: ReportsTableProps) {
                         </DialogHeader>
                         
                         <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 mt-4 max-h-[60vh] overflow-y-auto pr-4 -mr-4">
-                            {/* Columna Izquierda: Detalles del Incidente */}
-                            <div className="space-y-4">
-                                <SectionTitle>Detalles del Incidente</SectionTitle>
-                                <DetailItem icon={<FileText size={16} />} label="Descripción del Hecho" value={selectedReport.description} isTextArea />
-                                <DetailItem icon={<LinkIcon size={16} />} label="Plataforma" value={selectedReport.socialNetwork} />
-                                <DetailItem icon={<LinkIcon size={16} />} label="Perfil/URL del Estafador" value={selectedReport.profileUrl} isLink />
-                                <DetailItem icon={<Mail size={16} />} label="Email del Reportante" value={selectedReport.contactEmail} />
+                            <div className="space-y-6">
+                                <div>
+                                    <SectionTitle>Detalles del Incidente</SectionTitle>
+                                    <div className="space-y-4 mt-3">
+                                        <DetailItem icon={<FileText size={16} />} label="Descripción del Hecho" value={selectedReport.description} isTextArea />
+                                        <DetailItem icon={<LinkIcon size={16} />} label="Plataforma" value={selectedReport.socialNetwork} />
+                                        <DetailItem icon={<LinkIcon size={16} />} label="Perfil/URL del Estafador" value={selectedReport.profileUrl} isLink />
+                                    </div>
+                                </div>
+                                <div>
+                                    <SectionTitle>Información del Reportante</SectionTitle>
+                                    <div className="space-y-4 mt-3">
+                                        <DetailItem icon={<User size={16} />} label="Nombre" value={selectedReport.reporterName} />
+                                        <DetailItem icon={<Mail size={16} />} label="Email" value={selectedReport.contactEmail} />
+                                        <DetailItem icon={<Smartphone size={16} />} label="WhatsApp" value={selectedReport.reporterWhatsapp} />
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Columna Derecha: Información del Estafador */}
                             <div className="space-y-4">
-                                <SectionTitle>Información del Presunto Estafador</SectionTitle>
+                                <SectionTitle>Datos del Presunto Estafador</SectionTitle>
                                 <DetailItem icon={<Landmark size={16} />} label="Cuenta Bancaria" value={selectedReport.scammerBankAccount} />
                                 <DetailItem icon={<Smartphone size={16} />} label="Pago Móvil" value={selectedReport.scammerPagoMovil} />
                                 <DetailItem icon={<Phone size={16} />} label="Teléfono" value={selectedReport.scammerPhone} />
                             </div>
 
-                            {/* Sección de Evidencias */}
                             {selectedReport.evidencias && selectedReport.evidencias.length > 0 && (
                                 <div className="md:col-span-2">
                                      <SectionTitle>Evidencias</SectionTitle>
                                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2 rounded-lg bg-black/20 p-4">
                                          {selectedReport.evidencias.map((url, index) => (
                                              <a key={index} href={url} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden border-2 border-gray-700 hover:border-yellow-500 transition-all duration-200 hover:scale-105">
-                                                 <img 
-                                                     src={url} 
-                                                     alt={`Evidencia ${index + 1}`}
-                                                     className="w-full h-32 object-cover"
-                                                 />
+                                                 <img src={url} alt={`Evidencia ${index + 1}`} className="w-full h-32 object-cover" />
                                              </a>
                                          ))}
                                      </div>
@@ -178,7 +221,6 @@ export function ReportsTable({ reports, onReportUpdate }: ReportsTableProps) {
                             )}
                         </div>
 
-                        {/* --- MODAL FOOTER REBUILD --- */}
                         <DialogFooter className="mt-6 pt-4 border-t border-gray-700 flex flex-col-reverse sm:flex-row sm:justify-between sm:items-center gap-4">
                              <div className="w-full sm:w-48">
                                 <Select value={modalStatus} onValueChange={(v) => setModalStatus(v as any)}>
@@ -204,29 +246,4 @@ export function ReportsTable({ reports, onReportUpdate }: ReportsTableProps) {
             )}
         </div>
     );
-}
-
-function DetailItem({ label, value, icon, isLink = false, isTextArea = false }: { label: string; value?: string; icon?: React.ReactNode, isLink?: boolean, isTextArea?: boolean }) {
-    if (!value) return null;
-
-    return (
-        <div className="flex flex-col gap-1.5">
-            <Label className="text-sm font-semibold text-gray-400 flex items-center gap-2">
-                {icon} {label}
-            </Label>
-            {isTextArea ? (
-                <p className="text-sm text-gray-200 bg-black/20 p-3 rounded-md whitespace-pre-wrap border border-gray-700/50">{value}</p>
-            ) : isLink ? (
-                 <a href={value} target="_blank" rel="noopener noreferrer" className="text-sm text-yellow-400 font-mono bg-black/20 p-2 rounded-md truncate hover:text-yellow-300 border border-gray-700/50 block">
-                    {value}
-                </a>
-            ) : (
-                <p className="text-sm text-gray-200 font-mono bg-black/20 p-2 rounded-md border border-gray-700/50">{value}</p>
-            )}
-        </div>
-    );
-}
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-    return <h3 className="font-bold text-lg text-yellow-500 border-b-2 border-yellow-500/30 pb-2 mb-3">{children}</h3>
 }

@@ -1,12 +1,12 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
-import { Check, Shield, FileText, Send, Users, Fingerprint, ShoppingCart, HelpCircle, XCircle, CheckCircle, UserCheck } from 'lucide-react';
+import { Check, Shield, FileText, Users, Fingerprint, ShoppingCart, HelpCircle, XCircle, CheckCircle, UserCheck } from 'lucide-react';
 import { SocialNetworkModal } from './SocialNetworkModal';
 import { EvidenceForm, EvidenceData } from './EvidenceForm';
 import { db } from '@/lib/firebase';
@@ -21,7 +21,7 @@ const steps = [
     { title: 'Perfil del Estafador', icon: <Shield size={20} /> },
     { title: 'Tipo de Estafa', icon: <FileText size={20} /> },
     { title: 'Evidencia', icon: <Check size={20} /> },
-    { title: 'Tu Identidad', icon: <UserCheck size={20} /> },
+    { title: 'Tus Datos', icon: <UserCheck size={20} /> },
 ];
 
 const StepProgress = ({ currentStep }: { currentStep: number }) => (
@@ -56,27 +56,32 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
 
     const [isAnonymous, setIsAnonymous] = useState(true);
     const [reporterName, setReporterName] = useState('');
+    const [contactEmail, setContactEmail] = useState('');
+    const [reporterWhatsapp, setReporterWhatsapp] = useState('');
 
-    const nextStep = () => {
-        if (step === 0) {
-            if (!scammerProfile || !scammerProfile.socialNetwork || !scammerProfile.profileUrl) {
-                alert('Por favor, selecciona una red social y proporciona una URL de perfil.');
-                return;
-            }
+    const handleNextStep = (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (step === 0 && (!scammerProfile || !scammerProfile.socialNetwork || !scammerProfile.profileUrl)) {
+            alert('Por favor, selecciona una red social y proporciona una URL de perfil.');
+            return;
         }
-        if (step === 1) {
-            if (!scamType) {
-                alert('Por favor, selecciona un tipo de estafa.');
-                return;
-            }
+        if (step === 1 && !scamType) {
+            alert('Por favor, selecciona un tipo de estafa.');
+            return;
         }
         if (step === 2 && !isEvidenceFormValid) {
-             alert('Por favor, completa la información de evidencia requerida.');
+            alert('Por favor, completa la información de evidencia requerida.');
             return;
         }
         setStep(s => s + 1);
     };
-    const prevStep = () => setStep(s => s - 1);
+    
+    const handlePrevStep = (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setStep(s => s - 1);
+    };
 
     const resetForm = () => {
         setStep(0);
@@ -88,6 +93,8 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
         setScamType('social_media');
         setIsAnonymous(true);
         setReporterName('');
+        setContactEmail('');
+        setReporterWhatsapp('');
         setIsEvidenceFormValid(false);
     };
 
@@ -99,12 +106,10 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
-        if (step !== steps.length - 1) {
-            return;
-        }
+        if (step !== steps.length - 1) return;
 
-        if (!isAnonymous && !reporterName.trim()) {
-            alert('Por favor, introduce tu nombre o selecciona la opción de denuncia anónima para enviar el reporte.');
+        if (!isAnonymous && (!reporterName.trim() || !contactEmail.trim() || !reporterWhatsapp.trim())) {
+            alert('Para un reporte no-anónimo, por favor introduce tu nombre, correo y número de WhatsApp.');
             return;
         }
         setLoading(true);
@@ -113,7 +118,7 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
         try {
             const evidenceUrls = evidenceData?.evidenceLinks.split(/[ ,\n]+/).filter(link => link.trim() !== '') || [];
 
-            const reportData = {
+            const reportData: any = { // <-- CORREGIDO: Usar un objeto base
                 cedula: personId,
                 nombreCompleto: personName,
                 socialNetwork: scammerProfile?.socialNetwork || 'No especificada',
@@ -124,10 +129,17 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
                 scammerPagoMovil: evidenceData?.scammerPagoMovil || '',
                 scammerPhone: evidenceData?.scammerPhone || '',
                 evidencias: evidenceUrls,
-                reporterName: isAnonymous ? 'Anónimo' : reporterName.trim(),
                 createdAt: serverTimestamp(),
                 estado: 'pending',
             };
+
+            if (isAnonymous) {
+                reportData.reporterName = 'Anónimo';
+            } else {
+                reportData.reporterName = reporterName.trim();
+                reportData.contactEmail = contactEmail.trim();
+                reportData.reporterWhatsapp = reporterWhatsapp.trim();
+            }
 
             const docRef = await addDoc(collection(db, 'reports'), reportData);
             setReportId(docRef.id);
@@ -147,7 +159,7 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
         (step === 2 && !isEvidenceFormValid)
     );
 
-    const isSubmitDisabled = loading || (!isAnonymous && !reporterName.trim());
+    const isSubmitDisabled = loading || (!isAnonymous && (!reporterName.trim() || !contactEmail.trim() || !reporterWhatsapp.trim()));
 
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -209,25 +221,35 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
                                             <Label htmlFor="anonymous-switch" className="text-base cursor-pointer">Realizar denuncia anónima</Label>
                                         </div>
                                         {!isAnonymous && (
-                                            <div className="animate-fade-in">
-                                                <Label htmlFor="reporterName" className="text-base">Tu Nombre Completo</Label>
-                                                <Input required id="reporterName" name="reporterName" value={reporterName} onChange={(e) => setReporterName(e.target.value)} placeholder="Ej: Juan Pérez" className="bg-gray-800 border-gray-600 max-w-sm mx-auto mt-2" />
+                                            <div className="animate-fade-in space-y-4 max-w-sm mx-auto text-left">
+                                                <div>
+                                                    <Label htmlFor="reporterName" className="text-base">Tu Nombre Completo</Label>
+                                                    <Input required id="reporterName" name="reporterName" value={reporterName} onChange={(e) => setReporterName(e.target.value)} placeholder="Ej: Juan Pérez" className="bg-gray-800 border-gray-600 mt-1" />
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="contactEmail" className="text-base">Tu Correo Electrónico</Label>
+                                                    <Input required type="email" id="contactEmail" name="contactEmail" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="juan.perez@email.com" className="bg-gray-800 border-gray-600 mt-1" />
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="reporterWhatsapp" className="text-base">Tu Número de WhatsApp</Label>
+                                                    <Input required id="reporterWhatsapp" name="reporterWhatsapp" value={reporterWhatsapp} onChange={(e) => setReporterWhatsapp(e.target.value)} placeholder="+58 412 1234567" className="bg-gray-800 border-gray-600 mt-1" />
+                                                </div>
                                             </div>
                                         )}
                                          <div className="text-sm text-gray-400 bg-gray-800/50 p-4 rounded-lg border border-yellow-400/30 max-w-lg mx-auto">
                                             <p className="font-bold text-yellow-400 text-base mb-2">Proceso de Revisión</p>
-                                            <p>Tu reporte será revisado por nuestro equipo. Si es aprobado, se hará público para alertar a la comunidad. {isAnonymous ? 'Tu identidad no será revelada.' : 'El nombre que proporcionaste será visible en el reporte.'}</p>
+                                            <p>Tu reporte será revisado por nuestro equipo. Si es aprobado, se hará público para alertar a la comunidad. {isAnonymous ? 'Tu identidad no será revelada.' : 'Tus datos de contacto no serán públicos, pero podremos contactarte si necesitamos más información.'}</p>
                                         </div>
                                     </div>
                                 )}
                                 
                                 <DialogFooter className="mt-8 sm:mt-10 flex justify-between items-center">
-                                    <Button type="button" onClick={prevStep} className={`bg-yellow-500 hover:bg-yellow-600 text-black px-4 sm:px-6 ${step === 0 ? 'invisible' : ''}`}>
+                                    <Button type="button" onClick={handlePrevStep} className={`bg-gray-600 hover:bg-gray-700 text-white px-4 sm:px-6 ${step === 0 ? 'invisible' : ''}`}>
                                         Anterior
                                     </Button>
                                     <div>
                                         {step < steps.length - 1 ? (
-                                            <Button type="button" onClick={nextStep} className="bg-yellow-500 hover:bg-yellow-600 text-black px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg" disabled={isNextDisabled}>
+                                            <Button type="button" onClick={handleNextStep} className="bg-yellow-500 hover:bg-yellow-600 text-black px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg" disabled={isNextDisabled}>
                                                 Siguiente
                                             </Button>
                                         ) : (

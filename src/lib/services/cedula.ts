@@ -94,8 +94,8 @@ export async function getReportsByCedula(cedula: string): Promise<Report[]> {
         const reportsRef = collection(db, "reports");
         const q = query(
             reportsRef,
-            where("cedula", "==", cedula),      
-            where("estado", "==", "verified") 
+            where("cedula", "==", cedula),
+            where("estado", "==", "verified")
         );
 
         const querySnapshot = await getDocs(q);
@@ -118,7 +118,7 @@ export async function getReportsByCedula(cedula: string): Promise<Report[]> {
                 id: doc.id,
                 cedula: data.cedula,
                 createdAt: data.createdAt,
-                status: status, 
+                status: status,
 
                 scamType: data.scamType || data.caseType || "other",
                 socialNetwork: data.socialNetwork || "other",
