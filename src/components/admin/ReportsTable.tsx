@@ -18,7 +18,6 @@ interface ReportsTableProps {
 
 // Componente para mostrar un solo item de detalle en el modal
 function DetailItem({ label, value, icon, isLink = false, isTextArea = false }: { label: string; value?: string; icon?: React.ReactNode, isLink?: boolean, isTextArea?: boolean }) {
-    // Para campos que NO son de contacto, si no tienen valor, no los mostramos.
     const isOptionalField = !["Nombre", "Email", "WhatsApp"].includes(label);
     if (!value && isOptionalField) {
         return null;
@@ -102,6 +101,7 @@ export function ReportsTable({ reports, onReportUpdate }: ReportsTableProps) {
     const filteredReports = useMemo(() => {
         if (!reports) return [];
         return reports
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) // Ordenar por fecha de creación descendente
             .filter(report => filter === 'all' || report.status === filter)
             .filter(report => 
                 report.nombreCompleto.toLowerCase().includes(searchQuery.toLowerCase()) ||

@@ -62,8 +62,8 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
     const handleNextStep = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
         e.stopPropagation();
-        if (step === 0 && (!scammerProfile || !scammerProfile.socialNetwork || !scammerProfile.profileUrl)) {
-            alert('Por favor, selecciona una red social y proporciona una URL de perfil.');
+        if (step === 0 && !scammerProfile) {
+            alert('Por favor, completa la información del perfil del estafador.');
             return;
         }
         if (step === 1 && !scamType) {
@@ -118,7 +118,7 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
         try {
             const evidenceUrls = evidenceData?.evidenceLinks.split(/[ ,\n]+/).filter(link => link.trim() !== '') || [];
 
-            const reportData: any = { // <-- CORREGIDO: Usar un objeto base
+            const reportData: any = {
                 cedula: personId,
                 nombreCompleto: personName,
                 socialNetwork: scammerProfile?.socialNetwork || 'No especificada',
@@ -154,7 +154,7 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
     };
     
     const isNextDisabled = (
-        (step === 0 && (!scammerProfile || !scammerProfile.socialNetwork || !scammerProfile.profileUrl)) ||
+        (step === 0 && !scammerProfile) ||
         (step === 1 && !scamType) ||
         (step === 2 && !isEvidenceFormValid)
     );
@@ -187,14 +187,16 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
                                             <div className="flex items-center justify-between p-3 rounded-lg bg-gray-800 border border-gray-600">
                                                 <div>
                                                     <p className="font-bold capitalize">{scammerProfile.socialNetwork}</p>
-                                                    <p className="text-sm text-gray-400">{scammerProfile.profileUrl}</p>
+                                                    {scammerProfile.socialNetwork !== 'en persona' && (
+                                                        <p className="text-sm text-gray-400 break-all">{scammerProfile.profileUrl}</p>
+                                                    )}
                                                 </div>
                                                 <Button type="button" variant="ghost" onClick={() => setScammerProfile(null)}>Cambiar</Button>
                                             </div>
                                         ) : (
                                             <SocialNetworkModal onSave={setScammerProfile}>
                                                 <Button type="button" className="w-full justify-start p-6 text-left bg-gray-800 hover:bg-gray-700 border-gray-600 border">
-                                                    Seleccionar Red Social y Pegar URL
+                                                    Seleccionar Modalidad y Perfil
                                                 </Button>
                                             </SocialNetworkModal>
                                         )}
@@ -243,8 +245,8 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
                                     </div>
                                 )}
                                 
-                                <DialogFooter className="mt-8 sm:mt-10 flex justify-between items-center">
-                                    <Button type="button" onClick={handlePrevStep} className={`bg-gray-600 hover:bg-gray-700 text-white px-4 sm:px-6 ${step === 0 ? 'invisible' : ''}`}>
+                                <DialogFooter className="mt-8 sm:mt-10 flex flex-wrap justify-between items-center gap-2">
+                                     <Button type="button" variant="outline" onClick={handlePrevStep} className={`border-gray-600 hover:bg-gray-700 text-gray-300 hover:text-white px-4 sm:px-6 ${step === 0 ? 'invisible' : ''}`}>
                                         Anterior
                                     </Button>
                                     <div>
