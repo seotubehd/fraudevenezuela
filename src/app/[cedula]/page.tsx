@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, use } from "react";
 import { SearchForm } from "@/components/search/SearchForm";
 import { SearchResults } from "@/components/search/SearchResults";
 import { notFound } from "next/navigation";
@@ -6,9 +6,9 @@ import { notFound } from "next/navigation";
 export default function CedulaPage({
   params,
 }: {
-  params: { cedula: string };
+  params: Promise<{ cedula: string }>;
 }) {
-  const { cedula } = params;
+  const { cedula } = use(params);
 
   // Validate cedula format (V or E followed by numbers)
   const cedulaRegex = /^[VE]\\d{6,8}$/i;
