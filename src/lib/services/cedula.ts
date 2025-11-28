@@ -1,6 +1,7 @@
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, Timestamp } from "firebase/firestore";
 import type { Report as AppReport, ReportStatus } from "@/types/report";
+import { unstable_cache as nextCache } from 'next/cache';
 
 // --- Interfaces (sin cambios) ---
 interface ApiCedulaData { nacionalidad: string; cedula: number; rif: string; primer_apellido: string; segundo_apellido: string; primer_nombre: string; segundo_nombre: string; cne?: { estado: string; municipio: string; parroquia: string; centro_electoral: string; }; }
@@ -12,64 +13,62 @@ export type Report = Omit<AppReport, 'nombreCompleto' | 'contactEmail'> & { repo
 // LÓGICA DE CACHÉ FINAL Y CORRECTA
 // =========================================================================
 
-// --- OBTENER DATOS DE LA PERSONA (CON CACHÉ DE FETCH) ---
-// Se elimina el `cache()` de React. Se confía en el sistema de caché de datos
-// nativo de Next.js, que automáticamente cachea las peticiones `fetch`.
-// Esto SI persiste entre diferentes peticiones del navegador.
-export async function getCedula(cedula: string): Promise<CedulaData | null> {
-  console.log(`[getCedula] Procesando para la cédula: ${cedula}`);
+export const getCedula = nextCache(
+  async (cedula: string): Promise<CedulaData | null> => {
+    console.log(`[getCedula] Procesando para la cédula: ${cedula}`);
 
-  const appId = process.env.CEDULA_API_APP_ID;
-  const token = process.env.CEDULA_API_TOKEN;
+    const appId = process.env.CEDULA_API_APP_ID;
+    const token = process.env.CEDULA_API_TOKEN;
 
-  if (!appId || !token) {
-    console.error("[getCedula] ERROR CRÍTICO: Variables de entorno no configuradas.");
-    throw new Error("Configuración de API incompleta en el servidor.");
-  }
+    if (!appId || !token) {
+      console.error("[getCedula] ERROR CRÍTICO: Variables de entorno no configuradas.");
+      throw new Error("Configuración de API incompleta en el servidor.");
+    }
 
-  const cleanCedula = cedula.replace(/[^0-9]/g, "");
-  const nacionalidad = cedula.toUpperCase().startsWith("E") ? "E" : "V";
-  
-  const url = `https://api.cedula.com.ve/api/v1?app_id=${appId}&token=${token}&nacionalidad=${nacionalidad}&cedula=${cleanCedula}`;
-  
-  try {
-    // Por defecto, Next.js usa `cache: 'force-cache'` para `fetch`.
-    // Esto significa que la respuesta será cacheada y re-utilizada en peticiones futuras.
-    const apiResponse = await fetch(url);
+    const cleanCedula = cedula.replace(/[^0-9]/g, "");
+    const nacionalidad = cedula.toUpperCase().startsWith("E") ? "E" : "V";
     
-    if (!apiResponse.ok) {
-      console.warn(`[getCedula] La API externa devolvió ${apiResponse.status}. Devolviendo null.`);
+    const url = `https://api.cedula.com.ve/api/v1?app_id=${appId}&token=${token}&nacionalidad=${nacionalidad}&cedula=${cleanCedula}`;
+    
+    try {
+      const apiResponse = await fetch(url);
+      
+      if (!apiResponse.ok) {
+        console.warn(`[getCedula] La API externa devolvió ${apiResponse.status}. Devolviendo null.`);
+        return null;
+      }
+
+      const externalData = await apiResponse.json();
+
+      if (externalData.error || !externalData.data) {
+        console.warn("[getCedula] La API externa no devolvió datos. Devolviendo null.");
+        return null;
+      }
+
+      const apiData: ApiCedulaData = externalData.data;
+      const cneData = apiData.cne || { estado: "N/A", municipio: "N/A", parroquia: "N/A", centro_electoral: "N/A" };
+
+      return {
+        cedula: `${apiData.nacionalidad}-${apiData.cedula}`,
+        nombre: `${apiData.primer_nombre} ${apiData.segundo_nombre || ''} ${apiData.primer_apellido} ${apiData.segundo_apellido || ''}`.trim(),
+        estado: cneData.estado,
+        municipio: cneData.municipio,
+        parroquia: cneData.parroquia,
+        centro: cneData.centro_electoral
+      };
+
+    } catch (error) {
+      console.error("[getCedula] ERROR EN CATCH. La llamada a fetch falló.", error);
       return null;
     }
-
-    const externalData = await apiResponse.json();
-
-    if (externalData.error || !externalData.data) {
-      console.warn("[getCedula] La API externa no devolvió datos. Devolviendo null.");
-      return null;
-    }
-
-    const apiData: ApiCedulaData = externalData.data;
-    const cneData = apiData.cne || { estado: "N/A", municipio: "N/A", parroquia: "N/A", centro_electoral: "N/A" };
-
-    return {
-      cedula: `${apiData.nacionalidad}-${apiData.cedula}`,
-      nombre: `${apiData.primer_nombre} ${apiData.segundo_nombre || ''} ${apiData.primer_apellido} ${apiData.segundo_apellido || ''}`.trim(),
-      estado: cneData.estado,
-      municipio: cneData.municipio,
-      parroquia: cneData.parroquia,
-      centro: cneData.centro_electoral
-    };
-
-  } catch (error) {
-    console.error("[getCedula] ERROR EN CATCH. La llamada a fetch falló.", error);
-    return null;
+  },
+  ['cedula-data-service'], // Unique key for this cache
+  {
+    revalidate: 86400, // Revalidate after 1 day
   }
-}
+);
 
 // --- OBTENER REPORTES (SIN CACHÉ) ---
-// Esta es una función async normal. No usa `fetch` y no es envuelta en `cache()`,
-// por lo que SIEMPRE consultará la base de datos en tiempo real.
 export async function getReportsByCedula(cedula: string): Promise<Report[]> {
     console.log(`[getReportsByCedula] Buscando reportes en tiempo real para: ${cedula}`);
     try {
