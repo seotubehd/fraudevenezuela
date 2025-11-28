@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
-import { Check, Shield, FileText, Users, Fingerprint, ShoppingCart, HelpCircle, XCircle, CheckCircle, UserCheck } from 'lucide-react';
+import { Check, Shield, FileText, Users, Fingerprint, ShoppingCart, HelpCircle, XCircle, CheckCircle, UserCheck, ChevronLeft } from 'lucide-react';
 import { SocialNetworkModal } from './SocialNetworkModal';
 import { EvidenceForm, EvidenceData } from './EvidenceForm';
 import { db } from '@/lib/firebase';
@@ -71,7 +71,7 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
             return;
         }
         if (step === 2 && !isEvidenceFormValid) {
-            alert('Por favor, completa la información de evidencia requerida.');
+            alert('Por favor, asegúrate de describir la estafa y subir al menos una imagen como evidencia.');
             return;
         }
         setStep(s => s + 1);
@@ -116,10 +116,6 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
         setError(null);
 
         try {
-            const manuallyEnteredLinks = evidenceData?.evidenceLinks?.split(/[ ,\n]+/).filter(link => link.trim() !== '') || [];
-            const uploadedImageUrls = evidenceData?.uploadedImageUrls || [];
-            const allEvidence = [...new Set([...uploadedImageUrls, ...manuallyEnteredLinks])];
-
             const reportData: any = {
                 cedula: personId,
                 nombreCompleto: personName,
@@ -130,9 +126,10 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
                 scammerBankAccount: evidenceData?.scammerBankAccount || '',
                 scammerPagoMovil: evidenceData?.scammerPagoMovil || '',
                 scammerPhone: evidenceData?.scammerPhone || '',
-                evidencias: allEvidence,
+                evidencias: evidenceData?.uploadedImageUrls || [],
                 createdAt: serverTimestamp(),
-                estado: 'pending',
+                estado: 'pending', // backward compatibility
+                status: 'pending',
             };
 
             if (isAnonymous) {
@@ -170,16 +167,16 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
                     Reportar Estafa
                 </Button>
             </DialogTrigger>
-            <DialogContent className="w-full max-w-2xl bg-[#1a2332] text-white border-gray-700 p-4 sm:p-6 md:p-8 sm:rounded-lg h-screen sm:h-auto sm:max-h-[90vh] overflow-y-auto">
+            <DialogContent className="w-full max-w-2xl bg-[#1a2332] text-white border-gray-700 p-4 sm:p-6 md:p-8 sm:rounded-lg h-screen sm:h-auto sm:max-h-[90vh] flex flex-col">
                  {submissionStatus === 'idle' && (
                     <>
-                        <DialogHeader className="text-center mb-4 sm:mb-6">
+                        <DialogHeader className="text-center mb-4 sm:mb-6 flex-shrink-0">
                             <DialogTitle className="text-2xl sm:text-3xl font-bold text-yellow-400">Reportar a {personName}</DialogTitle>
                             <DialogDescription className="text-gray-400 text-base sm:text-lg">
                                 Tu colaboración es clave para un entorno más seguro.
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="py-4">
+                        <div className="py-4 flex-grow overflow-y-auto pr-2 -mr-4">
                             <StepProgress currentStep={step} />
                             <form onSubmit={handleSubmit} className="mt-6 sm:mt-8">
                                 {step === 0 && (
@@ -207,7 +204,7 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
                                 {step === 1 && (
                                      <div className="animate-fade-in">
                                         <Label className="text-base text-center block mb-4">¿Cuál fue la modalidad de la estafa?</Label>
-                                        <RadioGroup required name="scamType" value={scamType} onValueChange={setScamType} className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-4">
+                                        <RadioGroup required name="scamType" value={scamType} onValueChange={setScamType} className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-4">
                                              <Label className="flex flex-col items-center justify-center gap-2 p-3 sm:p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer border-2 border-transparent has-[:checked]:border-yellow-500"><Users className="h-7 w-7 sm:h-8 sm:w-8 text-yellow-400" /> <span className="text-center text-xs sm:text-sm">Estafa en Redes Sociales</span> <RadioGroupItem value="social_media" className="sr-only" /></Label>
                                              <Label className="flex flex-col items-center justify-center gap-2 p-3 sm:p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer border-2 border-transparent has-[:checked]:border-yellow-500"><Fingerprint className="h-7 w-7 sm:h-8 sm:w-8 text-yellow-400" /> <span className="text-center text-xs sm:text-sm">Phishing / Suplantación</span> <RadioGroupItem value="phishing" className="sr-only" /></Label>
                                              <Label className="flex flex-col items-center justify-center gap-2 p-3 sm:p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors cursor-pointer border-2 border-transparent has-[:checked]:border-yellow-500"><ShoppingCart className="h-7 w-7 sm:h-8 sm:w-8 text-yellow-400" /> <span className="text-center text-xs sm:text-sm">Venta Fraudulenta</span> <RadioGroupItem value="fraudulent_sale" className="sr-only" /></Label>
@@ -251,28 +248,31 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
                                     </div>
                                 )}
                                 
-                                <DialogFooter className="mt-8 sm:mt-10 flex flex-wrap justify-between items-center gap-2">
-                                     <Button type="button" variant="outline" onClick={handlePrevStep} className={`border-gray-600 hover:bg-gray-700 text-gray-300 hover:text-white px-4 sm:px-6 ${step === 0 ? 'invisible' : ''}`}>
+                                <DialogFooter className="mt-8 sm:mt-10 flex flex-row justify-between items-center pt-4 border-t border-gray-700 flex-shrink-0">
+                                    <Button 
+                                        type="button" 
+                                        onClick={handlePrevStep}
+                                        className={`bg-transparent border border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white ${step === 0 ? 'invisible' : ''}`}>
+                                        <ChevronLeft className="mr-2 h-4 w-4" />
                                         Anterior
                                     </Button>
-                                    <div>
-                                        {step < steps.length - 1 ? (
-                                            <Button type="button" onClick={handleNextStep} className="bg-yellow-500 hover:bg-yellow-600 text-black px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg" disabled={isNextDisabled}>
-                                                Siguiente
-                                            </Button>
-                                        ) : (
-                                            <Button type="submit" className="bg-green-500 hover:bg-green-600 text-white px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg disabled:opacity-50" disabled={isSubmitDisabled}>
-                                                {loading ? 'Enviando...' : 'Confirmar y Enviar Reporte'}
-                                            </Button>
-                                        )}
-                                    </div>
+                                    
+                                    {step < steps.length - 1 ? (
+                                        <Button type="button" onClick={handleNextStep} className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-6 sm:px-8 py-2 sm:py-3 text-base" disabled={isNextDisabled}>
+                                            Siguiente
+                                        </Button>
+                                    ) : (
+                                        <Button type="submit" className="bg-green-500 hover:bg-green-600 text-white font-bold px-6 sm:px-8 py-2 sm:py-3 text-base disabled:opacity-50" disabled={isSubmitDisabled}>
+                                            {loading ? 'Enviando...' : 'Confirmar y Enviar Reporte'}
+                                        </Button>
+                                    )}
                                 </DialogFooter>
                             </form>
                         </div>
                     </>
                 )}
                  {submissionStatus === 'success' && (
-                    <div className="flex flex-col items-center justify-center text-center py-10 animate-fade-in">
+                    <div className="flex flex-col items-center justify-center text-center p-6 flex-grow">
                          <CheckCircle className="h-16 w-16 text-green-500 mb-4" />
                          <h2 className="text-2xl font-bold text-white mb-2">¡Reporte Enviado con Éxito!</h2>
                          <p className="text-gray-400 mb-4">Gracias por tu colaboración. Tu reporte ha sido recibido y será revisado.</p>
@@ -285,7 +285,7 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
                      </div>
                 )}
                 {submissionStatus === 'error' && (
-                    <div className="flex flex-col items-center justify-center text-center py-10 animate-fade-in">
+                    <div className="flex flex-col items-center justify-center text-center p-6 flex-grow">
                         <XCircle className="h-16 w-16 text-red-500 mb-4" />
                         <h2 className="text-2xl font-bold text-white mb-2">Error al Enviar el Reporte</h2>
                         <p className="text-gray-400 mb-4">{error || 'No se pudo completar el envío. Por favor, inténtalo de nuevo más tarde.'}</p>

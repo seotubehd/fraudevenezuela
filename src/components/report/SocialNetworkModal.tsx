@@ -100,7 +100,7 @@ export function SocialNetworkModal({ children, onSave }: SocialNetworkModalProps
         </div>
         <DialogFooter className="mt-4 flex sm:justify-end gap-2">
            <DialogClose asChild>
-            <Button type="button" variant="outline" className="w-full sm:w-auto border-gray-600 hover:bg-gray-700 text-gray-300 hover:text-white">Cancelar</Button>
+            <Button type="button" variant="ghost" className="w-full sm:w-auto text-gray-300 hover:bg-gray-700 hover:text-white">Cancelar</Button>
           </DialogClose>
           <Button type="button" onClick={handleSave} className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-600 text-black">Guardar</Button>
         </DialogFooter>
