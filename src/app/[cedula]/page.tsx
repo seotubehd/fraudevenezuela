@@ -3,15 +3,15 @@ import { SearchForm } from "@/components/search/SearchForm";
 import { SearchResults } from "@/components/search/SearchResults";
 import { notFound } from "next/navigation";
 
-export default async function CedulaPage({
+export default function CedulaPage({
   params,
 }: {
-  params: Promise<{ cedula: string }>;
+  params: { cedula: string };
 }) {
-  const { cedula } = await params;
+  const { cedula } = params;
 
   // Validate cedula format (V or E followed by numbers)
-  const cedulaRegex = /^[VE]\d{6,8}$/i;
+  const cedulaRegex = /^[VE]\\d{6,8}$/i;
   if (!cedulaRegex.test(cedula)) {
     notFound();
   }
