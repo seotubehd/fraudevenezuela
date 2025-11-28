@@ -1,7 +1,6 @@
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, Timestamp } from "firebase/firestore";
+import { collection, query, where, getDocs, Timestamp, doc, getDoc, setDoc } from "firebase/firestore";
 import type { Report as AppReport, ReportStatus } from "@/types/report";
-import { unstable_cache as nextCache } from 'next/cache';
 
 // --- Interfaces (sin cambios) ---
 interface ApiCedulaData { nacionalidad: string; cedula: number; rif: string; primer_apellido: string; segundo_apellido: string; primer_nombre: string; segundo_nombre: string; cne?: { estado: string; municipio: string; parroquia: string; centro_electoral: string; }; }
@@ -10,65 +9,78 @@ interface ReportDocument { id: string; nombreCompleto: string; cedula: string; c
 export type Report = Omit<AppReport, 'nombreCompleto' | 'contactEmail'> & { reporterName?: string };
 
 // =========================================================================
-// LÓGICA DE CACHÉ FINAL Y CORRECTA
+// LÓGICA DE ALMACENAMIENTO PERMANENTE EN FIRESTORE
 // =========================================================================
 
-export const getCedula = nextCache(
-  async (cedula: string): Promise<CedulaData | null> => {
-    console.log(`[getCedula] Procesando para la cédula: ${cedula}`);
+export async function getCedula(cedula: string): Promise<CedulaData | null> {
+    console.log(`[getCedula] Buscando datos para la cédula: ${cedula}`);
+    const peopleRef = doc(db, "people", cedula);
 
-    const appId = process.env.CEDULA_API_APP_ID;
-    const token = process.env.CEDULA_API_TOKEN;
-
-    if (!appId || !token) {
-      console.error("[getCedula] ERROR CRÍTICO: Variables de entorno no configuradas.");
-      throw new Error("Configuración de API incompleta en el servidor.");
-    }
-
-    const cleanCedula = cedula.replace(/[^0-9]/g, "");
-    const nacionalidad = cedula.toUpperCase().startsWith("E") ? "E" : "V";
-    
-    const url = `https://api.cedula.com.ve/api/v1?app_id=${appId}&token=${token}&nacionalidad=${nacionalidad}&cedula=${cleanCedula}`;
-    
     try {
-      const apiResponse = await fetch(url);
-      
-      if (!apiResponse.ok) {
-        console.warn(`[getCedula] La API externa devolvió ${apiResponse.status}. Devolviendo null.`);
-        return null;
-      }
+        // 1. Check Firestore first
+        const docSnap = await getDoc(peopleRef);
 
-      const externalData = await apiResponse.json();
+        if (docSnap.exists()) {
+            console.log(`[getCedula] HIT: Datos encontrados en Firestore para ${cedula}. Sirviendo desde la base de datos.`);
+            return docSnap.data() as CedulaData;
+        }
 
-      if (externalData.error || !externalData.data) {
-        console.warn("[getCedula] La API externa no devolvió datos. Devolviendo null.");
-        return null;
-      }
+        // 2. If not in Firestore, fetch from external API
+        console.log(`[getCedula] MISS: Datos no encontrados en Firestore. Buscando en la API externa para ${cedula}.`);
+        
+        const appId = process.env.CEDULA_API_APP_ID;
+        const token = process.env.CEDULA_API_TOKEN;
 
-      const apiData: ApiCedulaData = externalData.data;
-      const cneData = apiData.cne || { estado: "N/A", municipio: "N/A", parroquia: "N/A", centro_electoral: "N/A" };
+        if (!appId || !token) {
+            console.error("[getCedula] ERROR CRÍTICO: Variables de entorno no configuradas.");
+            throw new Error("Configuración de API incompleta en el servidor.");
+        }
 
-      return {
-        cedula: `${apiData.nacionalidad}-${apiData.cedula}`,
-        nombre: `${apiData.primer_nombre} ${apiData.segundo_nombre || ''} ${apiData.primer_apellido} ${apiData.segundo_apellido || ''}`.trim(),
-        estado: cneData.estado,
-        municipio: cneData.municipio,
-        parroquia: cneData.parroquia,
-        centro: cneData.centro_electoral
-      };
+        const cleanCedula = cedula.replace(/[^0-9]/g, "");
+        const nacionalidad = cedula.toUpperCase().startsWith("E") ? "E" : "V";
+        
+        const url = `https://api.cedula.com.ve/api/v1?app_id=${appId}&token=${token}&nacionalidad=${nacionalidad}&cedula=${cleanCedula}`;
+        
+        const apiResponse = await fetch(url);
+        
+        if (!apiResponse.ok) {
+            console.warn(`[getCedula] La API externa devolvió ${apiResponse.status}. Devolviendo null.`);
+            return null;
+        }
+
+        const externalData = await apiResponse.json();
+
+        if (externalData.error || !externalData.data) {
+            console.warn("[getCedula] La API externa no devolvió datos. Devolviendo null.");
+            return null;
+        }
+
+        const apiData: ApiCedulaData = externalData.data;
+        const cneData = apiData.cne || { estado: "N/A", municipio: "N/A", parroquia: "N/A", centro_electoral: "N/A" };
+
+        const personData: CedulaData = {
+            cedula: `${apiData.nacionalidad}-${apiData.cedula}`,
+            nombre: `${apiData.primer_nombre} ${apiData.segundo_nombre || ''} ${apiData.primer_apellido} ${apiData.segundo_apellido || ''}`.trim(),
+            estado: cneData.estado,
+            municipio: cneData.municipio,
+            parroquia: cneData.parroquia,
+            centro: cneData.centro_electoral
+        };
+
+        // 3. Save the new data to Firestore for future requests
+        console.log(`[getCedula] Datos obtenidos de la API. Guardando en Firestore para ${cedula}.`);
+        await setDoc(peopleRef, personData);
+
+        return personData;
 
     } catch (error) {
-      console.error("[getCedula] ERROR EN CATCH. La llamada a fetch falló.", error);
-      return null;
+        console.error("[getCedula] ERROR EN CATCH. La operación falló.", error);
+        return null;
     }
-  },
-  ['cedula-data-service'], // Unique key for this cache
-  {
-    revalidate: 86400, // Revalidate after 1 day
-  }
-);
+}
 
-// --- OBTENER REPORTES (SIN CACHÉ) ---
+
+// --- OBTENER REPORTES (SIN CACHÉ) - NO CHANGES HERE ---
 export async function getReportsByCedula(cedula: string): Promise<Report[]> {
     console.log(`[getReportsByCedula] Buscando reportes en tiempo real para: ${cedula}`);
     try {
