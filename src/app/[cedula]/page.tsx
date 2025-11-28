@@ -3,20 +3,20 @@ import { SearchForm } from "@/components/search/SearchForm";
 import { SearchResults } from "@/components/search/SearchResults";
 import { notFound } from "next/navigation";
 
-// Final attempt using the React 'use' hook, which is the idiomatic way
-// to resolve a promise for props in a Server Component. This respects the
-// error message while aiming to preserve static rendering capabilities.
+// Explicitly force dynamic rendering for this route. This ensures the page
+// is re-generated on the server for every request, preventing the full route cache
+// from serving stale data for different cedulas. This is the key to seeing logs
+// for every new search.
+export const dynamic = 'force-dynamic';
+
 export default function CedulaPage({
   params,
 }: {
-  // The prop is a Promise, as dictated by the runtime error.
   params: Promise<{ cedula: string }>;
 }) {
-  // The 'use' hook unwraps the promise passed by Next.js.
   const resolvedParams = use(params);
   const { cedula } = resolvedParams;
 
-  // Validate cedula format (V or E followed by numbers)
   const cedulaRegex = /^[VE]\d{6,8}$/i;
   if (!cedulaRegex.test(cedula)) {
     notFound();
@@ -24,7 +24,6 @@ export default function CedulaPage({
 
   return (
     <div className="min-h-screen bg-[#1a2332]">
-      {/* Header with Search Form */}
       <header className="py-6 px-4 border-b border-gray-700">
         <div className="container mx-auto">
           <div className="text-center mb-6">
@@ -45,7 +44,6 @@ export default function CedulaPage({
         </div>
       </header>
 
-      {/* Results */}
       <main className="container mx-auto px-4 py-8">
         <Suspense
           fallback={
@@ -58,7 +56,6 @@ export default function CedulaPage({
         </Suspense>
       </main>
 
-      {/* Footer */}
       <footer className="py-6 px-4 mt-auto border-t border-gray-700">
         <div className="container mx-auto">
           <div className="bg-[#8b6914] border border-[#a17817] rounded-lg p-4 mb-4">
