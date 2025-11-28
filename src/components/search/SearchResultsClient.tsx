@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { CedulaData } from "@/lib/services/cedula";
-import type { Report } from "@/lib/services/cedula";
+import type { ClientReport } from "./SearchResults"; 
 import { User, AlertTriangle, ChevronLeft, ChevronRight, Link as LinkIcon, Phone, Smartphone, Landmark, Image as ImageIcon } from "lucide-react";
 import { ReportWizard } from "@/components/report/ReportWizard";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -10,10 +10,9 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 interface SearchResultsClientProps {
     cedula: string;
     initialData: CedulaData | null;
-    initialReports: Report[];
+    initialReports: ClientReport[];
 }
 
-// Mapeo para los tipos de estafa
 const scamTypeMap: { [key: string]: string } = {
     social_media: "Estafa en Redes Sociales",
     phishing: "Phishing / Suplantación",
@@ -21,19 +20,25 @@ const scamTypeMap: { [key: string]: string } = {
     other: "Otro tipo",
 };
 
-// Helper para formatear Timestamps de Firestore
-const formatTimestamp = (timestamp: any) => {
-    if (!timestamp || !timestamp.seconds) return "Fecha no disponible";
-    const date = new Date(timestamp.seconds * 1000);
+// Helper para formatear el string ISO de la fecha
+const formatTimestamp = (isoString: string): string => {
+    if (!isoString || typeof isoString !== 'string') return "Fecha no disponible";
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return "Fecha inválida";
+
+    // ¡CORRECCIÓN DE HYDRATION! 
+    // Se especifica timeZone: 'UTC' para asegurar que el formato de la fecha sea idéntico
+    // tanto en el servidor como en el cliente, evitando un error de hidratación de React.
     return new Intl.DateTimeFormat('es-VE', {
         year: 'numeric', month: 'long', day: 'numeric',
-        hour: 'numeric', minute: 'numeric', hour12: true
+        hour: 'numeric', minute: 'numeric', hour12: true,
+        timeZone: 'UTC' // <-- LA CORRECCIÓN CLAVE
     }).format(date);
 };
 
 export function SearchResultsClient({ cedula, initialData, initialReports }: SearchResultsClientProps) {
     const [data] = useState<CedulaData | null>(initialData);
-    const [reports] = useState<Report[]>(initialReports);
+    const [reports] = useState<ClientReport[]>(initialReports);
     const [currentReportIndex, setCurrentReportIndex] = useState(0);
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
     const [selectedImageUrl, setSelectedImageUrl] = useState("");

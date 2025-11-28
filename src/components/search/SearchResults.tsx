@@ -1,60 +1,54 @@
 import { getCedula, getReportsByCedula } from "@/lib/services/cedula";
 import { notFound } from "next/navigation";
 import { SearchResultsClient } from "./SearchResultsClient";
-import type { Report } from "@/lib/types";
+import type { Report as OriginalReport } from "@/lib/services/cedula";
+import { Timestamp } from "firebase/firestore";
 
 interface SearchResultsProps {
     cedula: string;
 }
 
-export async function SearchResults({ cedula }: SearchResultsProps) {
-    console.log(`\n--- NUEVA BÚSQUEDA EN SERVIDOR ---`);
-    console.log(`[SearchResults] 1. Componente renderizado para la cédula: ${cedula}`);
+// Tipo para los reportes que vienen de Firestore con el objeto Timestamp
+interface ReportWithTimestamp extends Omit<OriginalReport, 'createdAt'> {
+    createdAt: Timestamp;
+}
 
+// ¡NUEVO! Tipo para los reportes que se envían al cliente, con la fecha como string.
+export interface ClientReport extends Omit<OriginalReport, 'createdAt'> {
+    createdAt: string;
+}
+
+export async function SearchResults({ cedula }: SearchResultsProps) {
     const formattedCedula = cedula.includes('-') 
         ? cedula 
         : `${cedula.charAt(0)}-${cedula.slice(1)}`;
 
-    console.log(`[SearchResults] 2. Cédula formateada para la API: ${formattedCedula}`);
-    console.log(`[SearchResults] 3. Ejecutando Promise.all para getCedula y getReportsByCedula...`);
-
     const [cedulaResult, reportsResult] = await Promise.all([
         getCedula(formattedCedula),
-        getReportsByCedula(formattedCedula)
+        getReportsByCedula(formattedCedula),
     ]);
 
-    console.log(`[SearchResults] 4. Promise.all completado.`);
-    console.log(`[SearchResults]    - Resultado de getCedula:`, cedulaResult ? `OBJECT { nombre: "${cedulaResult.nombre}" }` : `--> NULL <--`);
-    console.log(`[SearchResults]    - Número de reportes encontrados: ${reportsResult.length}`);
-
     if (!cedulaResult) {
-        console.error(`[SearchResults] 5. ¡ERROR FATAL! El resultado de getCedula es NULL. Llamando a notFound()...`);
-        console.log(`------------------------------------\n`);
         notFound();
     }
-
-    console.log(`[SearchResults] 5. El resultado de getCedula es VÁLIDO.`);
     
-    // Ordenar los reportes primero
-    const sortedReports = reportsResult.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-    console.log(`[SearchResults] 6. Reportes ordenados.`);
+    // Usamos el tipo con Timestamp para ordenar
+    const sortedReports = (reportsResult as ReportWithTimestamp[]).sort((a, b) => {
+        return b.createdAt.seconds - a.createdAt.seconds;
+    });
 
-    // *** LA CORRECCIÓN CLAVE ***
-    // Mapear los reportes para convertir el Timestamp a un string ISO.
-    // Esto asegura que el objeto sea "plano" y pueda pasarse a un Componente de Cliente.
-    const serializableReports = sortedReports.map(report => ({
+    // Serializamos a 'ClientReport', convirtiendo el Timestamp a un string ISO.
+    const serializableReports: ClientReport[] = sortedReports.map(report => ({
         ...report,
-        createdAt: report.createdAt.toDate().toISOString(),
+        // Conversión explícita a string ISO
+        createdAt: new Date(report.createdAt.seconds * 1000).toISOString(),
     }));
-    console.log(`[SearchResults] 7. Timestamps convertidos a strings. Pasando datos al componente cliente.`);
-    console.log(`------------------------------------\n`);
 
     return (
         <SearchResultsClient 
             cedula={cedula} 
             initialData={cedulaResult} 
-            // Pasamos los reportes con la fecha ya convertida
-            initialReports={serializableReports} 
+            initialReports={serializableReports} // Ahora pasamos el tipo correcto
         />
     );
 }
