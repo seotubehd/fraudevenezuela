@@ -3,10 +3,17 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /reports/{reportId} {
-      allow get, list: if true;
-      allow create: if true;
-      allow update: if request.auth != null;
-      allow delete: if false;
+      // --- CORRECCIÓN ---
+      // Cambiamos 'get, list' por 'read'.
+      // El permiso 'read' permite explícitamente las operaciones de consulta (queries)
+      // que la aplicación necesita para buscar reportes por cédula.
+      // 'get, list' no era suficiente para permitir consultas con 'where'.
+      allow read: if true;
+
+      // El resto de las reglas permanecen igual.
+      allow create: if true; // Cualquiera puede crear un reporte (enviar un formulario)
+      allow update: if request.auth != null; // Solo usuarios autenticados (admins) pueden actualizar
+      allow delete: if false; // Nadie puede borrar reportes directamente
     }
   }
 }

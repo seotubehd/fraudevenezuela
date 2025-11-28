@@ -1,5 +1,16 @@
 {
   "firestore": {
-    "rules": "firestore.rules"
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8080,
+      "rules": "firestore.rules"
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    }
   }
 }

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+// Eliminamos la importación de useRouter ya que no la usaremos más.
+// import { useRouter } from 'next/navigation'; 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,14 +15,23 @@ import {
 } from '@/components/ui/select';
 
 export function SearchForm() {
-    const router = useRouter();
+    // Ya no necesitamos inicializar el router.
+    // const router = useRouter();
     const [cedula, setCedula] = useState('');
     const [nacionalidad, setNacionalidad] = useState('V');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (cedula.trim()) {
-            router.push(`/${nacionalidad}${cedula.trim()}`);
+            const absolutePath = `/${nacionalidad}${cedula.trim()}`;
+            
+            // --- LA CORRECCIÓN CLAVE ---
+            // Reemplazamos router.push por window.location.href.
+            // Esto fuerza una recarga completa de la página, evitando la navegación
+            // del lado del cliente que estaba causando inconsistencias con la API externa.
+            // Ahora, cada búsqueda será tratada como la primera, asegurando que la 
+            // lógica del servidor se ejecute de manera predecible siempre.
+            window.location.href = absolutePath;
         }
     };
 

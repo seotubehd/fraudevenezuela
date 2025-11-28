@@ -1,6 +1,7 @@
-'use client';
+'use server';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, updateDoc, Timestamp, writeBatch } from 'firebase/firestore';
+import { revalidateTag } from 'next/cache';
 
 // Tipos para los reportes en el panel de administración
 export interface AdminReport {
@@ -57,10 +58,15 @@ export const getAdminReports = async (): Promise<AdminReport[]> => {
 export const updateReportStatus = async (
     reportId: string, 
     status: 'pending' | 'verified' | 'rejected',
-    reportData: Partial<AdminReport> // El tercer parámetro se mantiene para compatibilidad pero no se usa para emails.
+    reportData: Partial<AdminReport>
 ): Promise<void> => {
     const reportDoc = doc(db, 'reports', reportId);
     await updateDoc(reportDoc, { status: status, estado: status });
+
+    if (status === 'verified' && reportData.cedula) {
+        revalidateTag(`cedula:${reportData.cedula}`, 'page');
+        revalidateTag(`reports:${reportData.cedula}`, 'page');
+    }
 };
 
 // Elimina múltiples reportes de forma masiva
