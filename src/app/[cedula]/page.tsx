@@ -1,97 +1,82 @@
-import { Suspense } from "react";
+import { Suspense, use } from "react";
 import { SearchForm } from "@/components/search/SearchForm";
 import { SearchResults } from "@/components/search/SearchResults";
 import { notFound } from "next/navigation";
 
-// Fixing the regex validation error.
-export default async function CedulaPage({
+// Final attempt using the React 'use' hook, which is the idiomatic way
+// to resolve a promise for props in a Server Component. This respects the
+// error message while aiming to preserve static rendering capabilities.
+export default function CedulaPage({
   params,
 }: {
+  // The prop is a Promise, as dictated by the runtime error.
   params: Promise<{ cedula: string }>;
 }) {
-  try {
-    console.log(`[CedulaPage] 1. Render start. Awaiting params promise...`);
-    const resolvedParams = await params;
-    console.log(`[CedulaPage] 2. Params promise resolved. Value: ${JSON.stringify(resolvedParams)}`);
+  // The 'use' hook unwraps the promise passed by Next.js.
+  const resolvedParams = use(params);
+  const { cedula } = resolvedParams;
 
-    const { cedula } = resolvedParams;
-    console.log(`[CedulaPage] 3. Extracted cedula: "${cedula}"`);
+  // Validate cedula format (V or E followed by numbers)
+  const cedulaRegex = /^[VE]\d{6,8}$/i;
+  if (!cedulaRegex.test(cedula)) {
+    notFound();
+  }
 
-    if (typeof cedula !== 'string') {
-        console.error(`[CedulaPage] 4. Cedula is not a string, it's ${typeof cedula}. Triggering 404.`);
-        notFound();
-    }
+  return (
+    <div className="min-h-screen bg-[#1a2332]">
+      {/* Header with Search Form */}
+      <header className="py-6 px-4 border-b border-gray-700">
+        <div className="container mx-auto">
+          <div className="text-center mb-6">
+            <a href="/">
+              <h1 className="text-3xl md:text-4xl font-bold mb-1">
+                <span className="text-yellow-500">Fraude</span>
+                <span className="text-white">Venezuela</span>
+                <span className="text-yellow-500">.info</span>
+              </h1>
+            </a>
+            <p className="text-gray-400 text-sm">
+              Consulte Cédulas y Reporte Estafas
+            </p>
+          </div>
+          <div className="max-w-2xl mx-auto">
+            <SearchForm />
+          </div>
+        </div>
+      </header>
 
-    // CORRECTED Regex: Changed from \\d to \d
-    const cedulaRegex = /^[VE]\d{6,8}$/i;
-    if (!cedulaRegex.test(cedula)) {
-      console.warn(`[CedulaPage] 5. Validation FAILED for cedula: "${cedula}". Triggering 404.`);
-      notFound();
-    }
-    console.log(`[CedulaPage] 5. Validation PASSED for cedula: "${cedula}".`);
+      {/* Results */}
+      <main className="container mx-auto px-4 py-8">
+        <Suspense
+          fallback={
+            <div className="flex justify-center items-center min-h-[400px]">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div>
+            </div>
+          }
+        >
+          <SearchResults cedula={cedula} />
+        </Suspense>
+      </main>
 
-    return (
-      <div className="min-h-screen bg-[#1a2332]">
-        {/* Header with Search Form */}
-        <header className="py-6 px-4 border-b border-gray-700">
-          <div className="container mx-auto">
-            <div className="text-center mb-6">
-              <a href="/">
-                <h1 className="text-3xl md:text-4xl font-bold mb-1">
-                  <span className="text-yellow-500">Fraude</span>
-                  <span className="text-white">Venezuela</span>
-                  <span className="text-yellow-500">.info</span>
-                </h1>
-              </a>
-              <p className="text-gray-400 text-sm">
-                Consulte Cédulas y Reporte Estafas
+      {/* Footer */}
+      <footer className="py-6 px-4 mt-auto border-t border-gray-700">
+        <div className="container mx-auto">
+          <div className="bg-[#8b6914] border border-[#a17817] rounded-lg p-4 mb-4">
+            <div className="flex items-start gap-3">
+              <span className="text-yellow-400 text-xl">⚠</span>
+              <p className="text-sm text-gray-200">
+                Los datos de identificación personal mostrados aquí son de dominio público
+                y accesibles a través de sitios web gubernamentales. Este sitio solo los
+                recopila y los muestra de forma centralizada.
               </p>
             </div>
-            <div className="max-w-2xl mx-auto">
-              <SearchForm />
-            </div>
           </div>
-        </header>
-
-        {/* Results */}
-        <main className="container mx-auto px-4 py-8">
-          <Suspense
-            fallback={
-              <div className="flex justify-center items-center min-h-[400px]">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div>
-              </div>
-            }
-          >
-            <SearchResults cedula={cedula} />
-          </Suspense>
-        </main>
-
-        {/* Footer */}
-        <footer className="py-6 px-4 mt-auto border-t border-gray-700">
-          <div className="container mx-auto">
-            <div className="bg-[#8b6914] border border-[#a17817] rounded-lg p-4 mb-4">
-              <div className="flex items-start gap-3">
-                <span className="text-yellow-400 text-xl">⚠</span>
-                <p className="text-sm text-gray-200">
-                  Los datos de identificación personal mostrados aquí son de dominio público
-                  y accesibles a través de sitios web gubernamentales. Este sitio solo los
-                  recopila y los muestra de forma centralizada.
-                </p>
-              </div>
-            </div>
-            <div className="text-center text-gray-500 text-xs">
-              <p>© 2025 FraudeVenezuela.info - <a href="#" className="hover:text-gray-400">Contacto</a></p>
-              <p className="mt-1">Esta es una herramienta comunitaria. La información es referencial.</p>
-            </div>
+          <div className="text-center text-gray-500 text-xs">
+            <p>© 2025 FraudeVenezuela.info - <a href="#" className="hover:text-gray-400">Contacto</a></p>
+            <p className="mt-1">Esta es una herramienta comunitaria. La información es referencial.</p>
           </div>
-        </footer>
-      </div>
-    );
-  } catch (error) {
-    console.error("[CedulaPage] 6. CRITICAL UNEXPECTED ERROR during page render:", error);
-    if (error && typeof error === 'object' && 'digest' in error && typeof error.digest === 'string' && error.digest.includes('NEXT_HTTP_ERROR_FALLBACK')) {
-      return;
-    }
-    throw error;
-  }
+        </div>
+      </footer>
+    </div>
+  );
 }
