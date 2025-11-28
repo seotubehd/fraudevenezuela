@@ -3,11 +3,11 @@ import { SearchForm } from "@/components/search/SearchForm";
 import { SearchResults } from "@/components/search/SearchResults";
 import { notFound } from "next/navigation";
 
-// Explicitly force dynamic rendering for this route. This ensures the page
-// is re-generated on the server for every request, preventing the full route cache
-// from serving stale data for different cedulas. This is the key to seeing logs
-// for every new search.
-export const dynamic = 'force-dynamic';
+// Use `revalidate = 0` instead of `force-dynamic`. This tells Next.js to
+// always re-render the page on the server for each request, BUT it still allows
+// individual `fetch` requests within the page to be cached.
+// This is the correct way to achieve our goal: dynamic page, cached data.
+export const revalidate = 0;
 
 export default function CedulaPage({
   params,
