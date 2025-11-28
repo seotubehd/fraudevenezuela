@@ -97,6 +97,8 @@ export function ReportsTable({ reports, onReportUpdate }: ReportsTableProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalStatus, setModalStatus] = useState<AdminReport['status']>('pending');
     const [loading, setLoading] = useState(false);
+    const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+    const [selectedImageUrl, setSelectedImageUrl] = useState("");
 
     const filteredReports = useMemo(() => {
         if (!reports) return [];
@@ -127,6 +129,11 @@ export function ReportsTable({ reports, onReportUpdate }: ReportsTableProps) {
         setSelectedReport(report);
         setModalStatus(report.status);
         setIsModalOpen(true);
+    };
+
+    const openImageModal = (url: string) => {
+        setSelectedImageUrl(url);
+        setIsImageModalOpen(true);
     };
 
     return (
@@ -212,9 +219,13 @@ export function ReportsTable({ reports, onReportUpdate }: ReportsTableProps) {
                                      <SectionTitle>Evidencias</SectionTitle>
                                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2 rounded-lg bg-black/20 p-4">
                                          {selectedReport.evidencias.map((url, index) => (
-                                             <a key={index} href={url} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden border-2 border-gray-700 hover:border-yellow-500 transition-all duration-200 hover:scale-105">
+                                             <button 
+                                                key={index} 
+                                                onClick={() => openImageModal(url)}
+                                                className="block rounded-lg overflow-hidden border-2 border-gray-700 hover:border-yellow-500 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                            >
                                                  <img src={url} alt={`Evidencia ${index + 1}`} className="w-full h-32 object-cover" />
-                                             </a>
+                                             </button>
                                          ))}
                                      </div>
                                 </div>
@@ -244,6 +255,12 @@ export function ReportsTable({ reports, onReportUpdate }: ReportsTableProps) {
                     </DialogContent>
                 </Dialog>
             )}
+
+            <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+                <DialogContent className="p-1 bg-transparent border-0 max-w-4xl w-full">
+                    <img src={selectedImageUrl} alt="Evidencia" className="rounded-lg object-contain max-h-[90vh] w-full" />
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

@@ -10,10 +10,13 @@ import { UploadCloud, File as FileIcon, X, CheckCircle } from 'lucide-react';
 interface FileUpload {
     file: File;
     status: 'pending' | 'uploading' | 'success' | 'error';
-    progress: number;
 }
 
-export function Uploader() {
+interface UploaderProps {
+    onUploadComplete?: (urls: string[]) => void;
+}
+
+export function Uploader({ onUploadComplete }: UploaderProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [files, setFiles] = useState<FileUpload[]>([]);
     const [isUploading, setIsUploading] = useState(false);
@@ -22,7 +25,6 @@ export function Uploader() {
         const newFiles: FileUpload[] = acceptedFiles.map(file => ({
             file,
             status: 'pending',
-            progress: 0,
         }));
         setFiles(prevFiles => [...prevFiles, ...newFiles]);
     }, []);
@@ -36,29 +38,30 @@ export function Uploader() {
     const handleUpload = async () => {
         if (files.length === 0) return;
         setIsUploading(true);
+        const successfulUrls: string[] = [];
 
-        for (const fileUpload of files) {
-            if (fileUpload.status === 'success') continue; // No volver a subir
+        const uploadPromises = files.map(async (fileUpload) => {
+            if (fileUpload.status === 'success' || fileUpload.status === 'uploading') return;
 
             try {
-                // 1. Obtener la URL firmada desde nuestra API
-                const res = await fetch('/api/upload', {
+                setFiles(prev => prev.map(f => f.file === fileUpload.file ? { ...f, status: 'uploading' } : f));
+
+                const apiUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/upload`;
+                const res = await fetch(apiUrl, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         filename: fileUpload.file.name,
                         contentType: fileUpload.file.type,
                     }),
                 });
 
-                if (!res.ok) throw new Error('Fallo al obtener la URL firmada.');
+                if (!res.ok) {
+                    throw new Error(`Error al obtener la URL: ${res.statusText}`);
+                }
+                const { url: presignedUrl } = await res.json();
 
-                const { url } = await res.json();
-
-                // 2. Subir el archivo a R2 usando la URL firmada
-                await fetch(url, {
+                const uploadRes = await fetch(presignedUrl, {
                     method: 'PUT',
                     body: fileUpload.file,
                     headers: {
@@ -66,23 +69,42 @@ export function Uploader() {
                     },
                 });
 
-                // Actualizar estado a éxito
-                setFiles(prev => prev.map(f => f.file === fileUpload.file ? { ...f, status: 'success', progress: 100 } : f));
+                if (!uploadRes.ok) {
+                    throw new Error(`Error al subir a R2: ${uploadRes.statusText}`);
+                }
+                
+                const publicUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${fileUpload.file.name}`;
+                successfulUrls.push(publicUrl);
+                
+                setFiles(prev => prev.map(f => f.file === fileUpload.file ? { ...f, status: 'success' } : f));
 
             } catch (error) {
-                console.error('Error subiendo el archivo:', error);
+                console.error('Error en la subida:', error);
                 setFiles(prev => prev.map(f => f.file === fileUpload.file ? { ...f, status: 'error' } : f));
             }
-        }
+        });
+
+        await Promise.all(uploadPromises);
 
         setIsUploading(false);
+        if (onUploadComplete && successfulUrls.length > 0) {
+            onUploadComplete(successfulUrls);
+        }
     };
+    
+    const handleDone = () => {
+        // La función onUploadComplete ya se llamó en handleUpload.
+        // Esta función solo necesita limpiar el estado y cerrar el diálogo.
+        setFiles([]);
+        setIsOpen(false);
+    };
+
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
                 <Button className="bg-blue-500 hover:bg-blue-600 text-white">
-                    Subir Archivos
+                    Subir Evidencia
                 </Button>
             </DialogTrigger>
             <DialogContent className="bg-[#1a2332] text-white border-gray-700">
@@ -107,13 +129,22 @@ export function Uploader() {
                                 {files.map((fileUpload, i) => (
                                     <li key={i} className="flex items-center justify-between p-2 rounded-lg bg-gray-800">
                                         <div className="flex items-center gap-2">
-                                            <FileIcon className="h-5 w-5 text-gray-400" />
+                                            {fileUpload.status === 'success' ? (
+                                                <CheckCircle className="h-5 w-5 text-green-500" />
+                                            ) : fileUpload.status === 'error' ? (
+                                                <X className="h-5 w-5 text-red-500" />
+                                            ) : fileUpload.status === 'uploading' ? (
+                                                <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-yellow-400"></div>
+                                            ) : (
+                                                <FileIcon className="h-5 w-5 text-gray-400" />
+                                            )}
                                             <span className="text-sm font-medium">{fileUpload.file.name}</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            {fileUpload.status === 'success' && <CheckCircle className="h-5 w-5 text-green-500" />}
-                                            {fileUpload.status === 'error' && <X className="h-5 w-5 text-red-500" />}
-                                            {!isUploading && (
+                                            {fileUpload.status === 'success' && <span className='text-xs text-green-400'>Completo</span>}
+                                            {fileUpload.status === 'error' && <span className='text-xs text-red-400'>Error</span>}
+                                            {fileUpload.status === 'uploading' && <span className='text-xs text-blue-400'>Subiendo...</span>}
+                                            {!isUploading && fileUpload.status !== 'success' && (
                                                 <Button variant="ghost" size="icon" onClick={() => removeFile(fileUpload.file)} className="text-gray-400 hover:text-red-500">
                                                     <X className="h-4 w-4" />
                                                 </Button>
@@ -126,12 +157,20 @@ export function Uploader() {
                     )}
 
                     <div className="flex justify-end gap-2">
-                         <Button variant="outline" onClick={() => setIsOpen(false)} className="text-gray-300 border-gray-600 hover:bg-gray-700" disabled={isUploading}>
-                             Cancelar
-                         </Button>
-                         <Button className="bg-yellow-500 hover:bg-yellow-600 text-black" onClick={handleUpload} disabled={files.length === 0 || isUploading || files.every(f => f.status === 'success')}>
-                            {isUploading ? 'Subiendo...' : `Subir ${files.length > 0 ? `(${files.length})` : ''}`}
-                         </Button>
+                        {files.every(f => f.status === 'success' || f.status === 'error') && files.length > 0 ? (
+                            <Button onClick={handleDone} className="bg-green-600 hover:bg-green-700 text-white">
+                                Hecho
+                            </Button>
+                        ) : (
+                            <>
+                                <Button variant="outline" onClick={() => setIsOpen(false)} className="text-gray-300 border-gray-600 hover:bg-gray-700" disabled={isUploading}>
+                                    Cancelar
+                                </Button>
+                                <Button className="bg-yellow-500 hover:bg-yellow-600 text-black" onClick={handleUpload} disabled={files.length === 0 || isUploading || files.every(f => f.status === 'success')}>
+                                    {isUploading ? 'Subiendo...' : `Subir ${files.length > 0 ? `(${files.filter(f => f.status === 'pending').length})` : ''}`}
+                                </Button>
+                            </>
+                        )}
                      </div>
                 </div>
             </DialogContent>

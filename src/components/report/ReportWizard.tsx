@@ -51,7 +51,7 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
     const [reportId, setReportId] = useState<string | null>(null);
     const [scammerProfile, setScammerProfile] = useState<{ socialNetwork: string, profileUrl: string } | null>(null);
     const [scamType, setScamType] = useState<string>('social_media');
-    const [evidenceData, setEvidenceData] = useState<EvidenceData | null>(null);
+    const [evidenceData, setEvidenceData] = useState<Partial<EvidenceData>>({});
     const [isEvidenceFormValid, setIsEvidenceFormValid] = useState(false);
 
     const [isAnonymous, setIsAnonymous] = useState(true);
@@ -89,7 +89,7 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
         setError(null);
         setReportId(null);
         setScammerProfile(null);
-        setEvidenceData(null);
+        setEvidenceData({});
         setScamType('social_media');
         setIsAnonymous(true);
         setReporterName('');
@@ -116,7 +116,9 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
         setError(null);
 
         try {
-            const evidenceUrls = evidenceData?.evidenceLinks.split(/[ ,\n]+/).filter(link => link.trim() !== '') || [];
+            const manuallyEnteredLinks = evidenceData?.evidenceLinks?.split(/[ ,\n]+/).filter(link => link.trim() !== '') || [];
+            const uploadedImageUrls = evidenceData?.uploadedImageUrls || [];
+            const allEvidence = [...new Set([...uploadedImageUrls, ...manuallyEnteredLinks])];
 
             const reportData: any = {
                 cedula: personId,
@@ -128,7 +130,7 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
                 scammerBankAccount: evidenceData?.scammerBankAccount || '',
                 scammerPagoMovil: evidenceData?.scammerPagoMovil || '',
                 scammerPhone: evidenceData?.scammerPhone || '',
-                evidencias: evidenceUrls,
+                evidencias: allEvidence,
                 createdAt: serverTimestamp(),
                 estado: 'pending',
             };
@@ -214,7 +216,11 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
                                     </div>
                                 )}
                                 {step === 2 && (
-                                    <EvidenceForm onChange={setEvidenceData} onValidationChange={setIsEvidenceFormValid} />
+                                    <EvidenceForm 
+                                        initialData={evidenceData} 
+                                        onChange={setEvidenceData} 
+                                        onValidationChange={setIsEvidenceFormValid} 
+                                    />
                                 )}
                                 {step === 3 && (
                                     <div className="animate-fade-in space-y-6 text-center">

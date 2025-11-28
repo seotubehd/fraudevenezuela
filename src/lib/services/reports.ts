@@ -1,6 +1,6 @@
 import { db, storage } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytesResumable, getDownloadURL, UploadTask } from "firebase/storage"; // Importar uploadBytesResumable y UploadTask
 
 // Estructura de datos para un reporte de irregularidad
 export interface ReportData {
@@ -14,20 +14,41 @@ export interface ReportData {
 }
 
 /**
- * Sube un archivo de evidencia a Firebase Storage.
+ * Sube un archivo de evidencia a Firebase Storage con seguimiento de progreso.
  * @param file - El archivo a subir.
+ * @param onProgress - Un callback para recibir el progreso de la subida (de 0 a 100).
  * @returns La URL de descarga del archivo subido.
  */
-export async function uploadEvidence(file: File): Promise<string> {
-    try {
+export function uploadEvidence(
+    file: File,
+    onProgress?: (progress: number) => void
+): Promise<string> {
+    return new Promise((resolve, reject) => {
         const storageRef = ref(storage, `evidencias/${Date.now()}_${file.name}`);
-        const snapshot = await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(snapshot.ref);
-        return downloadURL;
-    } catch (error) {
-        console.error("Error uploading file:", error);
-        throw error;
-    }
+        const uploadTask: UploadTask = uploadBytesResumable(storageRef, file);
+
+        uploadTask.on(
+            'state_changed',
+            (snapshot) => {
+                // Observar los cambios de estado como progreso, pausa y reanudación
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                if (onProgress) {
+                    onProgress(Math.round(progress));
+                }
+            },
+            (error) => {
+                // Manejar errores de subida
+                console.error("Error al subir el archivo:", error);
+                reject(error);
+            },
+            () => {
+                // Manejar la subida exitosa
+                getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                    resolve(downloadURL);
+                }).catch(reject);
+            }
+        );
+    });
 }
 
 /**

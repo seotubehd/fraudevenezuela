@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { getCedula, getReportsByCedula, Report } from "@/lib/services/cedula";
 import type { CedulaData } from "@/lib/services/cedula"; // Import type explicitly
-import { User, AlertTriangle, ChevronLeft, ChevronRight, Link as LinkIcon, Phone, Smartphone, Landmark } from "lucide-react";
+import { User, AlertTriangle, ChevronLeft, ChevronRight, Link as LinkIcon, Phone, Smartphone, Landmark, Image as ImageIcon } from "lucide-react";
 import { ReportWizard } from "@/components/report/ReportWizard";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface SearchResultsProps {
     cedula: string;
@@ -34,6 +35,8 @@ export function SearchResults({ cedula }: SearchResultsProps) {
     const [reports, setReports] = useState<Report[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [currentReportIndex, setCurrentReportIndex] = useState(0);
+    const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+    const [selectedImageUrl, setSelectedImageUrl] = useState("");
 
     useEffect(() => {
         async function fetchData() {
@@ -66,6 +69,11 @@ export function SearchResults({ cedula }: SearchResultsProps) {
             fetchData();
         }
     }, [cedula]);
+
+    const openImageModal = (url: string) => {
+        setSelectedImageUrl(url);
+        setIsImageModalOpen(true);
+    };
 
     if (loading) {
         return (
@@ -148,9 +156,25 @@ export function SearchResults({ cedula }: SearchResultsProps) {
                             <div><span className="text-gray-400">Tipo de Estafa</span><p className="text-white font-medium">{scamTypeMap[currentReport.scamType] || currentReport.scamType}</p></div>
                             <div><span className="text-gray-400">Fecha del Reporte</span><p className="text-white font-medium">{formatTimestamp(currentReport.createdAt)}</p></div>
                             <div><span className="text-gray-400">Descripción</span><p className="text-white font-medium mt-1 bg-gray-800/40 p-3 rounded whitespace-pre-wrap">{currentReport.descripcion}</p></div>
-                            <div><span className="text-gray-400">Denuncia Realizada por</span><p className="text-white font-medium">{currentReport.reporterName || 'Anónimo'}</p></div>
                             
-                            <div className="pt-3 mt-auto border-t border-gray-700/50">
+                            {currentReport.evidencias && currentReport.evidencias.length > 0 && (
+                                <div className="pt-3">
+                                    <h4 className="text-md font-semibold text-white mb-2 flex items-center gap-2"><ImageIcon size={16} /> Evidencias del Reporte</h4>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        {currentReport.evidencias.map((url, index) => (
+                                            <button 
+                                                key={index} 
+                                                onClick={() => openImageModal(url)} 
+                                                className="block rounded-lg overflow-hidden border-2 border-gray-700 hover:border-yellow-500 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                            >
+                                                <img src={url} alt={`Evidencia ${index + 1}`} className="w-full h-24 object-cover" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="pt-4 mt-auto border-t border-gray-700/50">
                                 <h4 className="text-md font-semibold text-white mb-3">Datos del Estafador</h4>
                                 <div className="space-y-3">
                                      <div className="flex items-center justify-between"><span className="flex items-center gap-2 text-gray-400"><LinkIcon size={14}/> Perfil</span><a href={currentReport.profileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 hover:underline">Ver Perfil</a></div>
@@ -158,6 +182,10 @@ export function SearchResults({ cedula }: SearchResultsProps) {
                                     {currentReport.scammerPagoMovil && <div className="flex items-center justify-between"><span className="flex items-center gap-2 text-gray-400"><Smartphone size={14}/> Pago Móvil</span><span className="text-white font-medium">{currentReport.scammerPagoMovil}</span></div>}
                                     {currentReport.scammerBankAccount && <div className="flex items-center justify-between"><span className="flex items-center gap-2 text-gray-400"><Landmark size={14}/> Cta. Bancaria</span><span className="text-white font-medium">{currentReport.scammerBankAccount}</span></div>}
                                 </div>
+                            </div>
+
+                             <div className="pt-3 mt-4 border-t border-gray-700/50 text-center">
+                                <span className="text-xs text-gray-500">Denuncia realizada por: {currentReport.reporterName || 'Anónimo'}</span>
                             </div>
                         </div>
                     ) : (
@@ -167,6 +195,13 @@ export function SearchResults({ cedula }: SearchResultsProps) {
                     )}
                 </div>
             </div>
+
+            <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
+                <DialogContent className="p-1 bg-transparent border-0 max-w-4xl w-full">
+                    <DialogTitle className="sr-only">Imagen de Evidencia</DialogTitle>
+                    <img src={selectedImageUrl} alt="Evidencia" className="rounded-lg object-contain max-h-[90vh] w-full" />
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
