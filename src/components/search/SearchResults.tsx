@@ -1,6 +1,7 @@
 import { getCedula, getReportsByCedula } from "@/lib/services/cedula";
 import { notFound } from "next/navigation";
 import { SearchResultsClient } from "./SearchResultsClient";
+import type { Report } from "@/lib/types";
 
 interface SearchResultsProps {
     cedula: string;
@@ -33,15 +34,27 @@ export async function SearchResults({ cedula }: SearchResultsProps) {
     }
 
     console.log(`[SearchResults] 5. El resultado de getCedula es VÁLIDO.`);
+    
+    // Ordenar los reportes primero
     const sortedReports = reportsResult.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-    console.log(`[SearchResults] 6. Reportes ordenados. Pasando datos al componente cliente SearchResultsClient.`);
+    console.log(`[SearchResults] 6. Reportes ordenados.`);
+
+    // *** LA CORRECCIÓN CLAVE ***
+    // Mapear los reportes para convertir el Timestamp a un string ISO.
+    // Esto asegura que el objeto sea "plano" y pueda pasarse a un Componente de Cliente.
+    const serializableReports = sortedReports.map(report => ({
+        ...report,
+        createdAt: report.createdAt.toDate().toISOString(),
+    }));
+    console.log(`[SearchResults] 7. Timestamps convertidos a strings. Pasando datos al componente cliente.`);
     console.log(`------------------------------------\n`);
 
     return (
         <SearchResultsClient 
             cedula={cedula} 
             initialData={cedulaResult} 
-            initialReports={sortedReports} 
+            // Pasamos los reportes con la fecha ya convertida
+            initialReports={serializableReports} 
         />
     );
 }

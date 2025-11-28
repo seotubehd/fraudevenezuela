@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '@/lib/firebase';
-import { getAdminReports, AdminReport } from "@/lib/services/admin"; 
+import { getAdminReports, updateReportsStatus, deleteMultipleReports, AdminReport } from "@/lib/services/admin"; 
 import { StatsOverview } from "@/components/admin/StatsOverview";
 import { ReportsTable } from "@/components/admin/ReportsTable";
 import { Button } from '@/components/ui/button';
@@ -13,8 +13,34 @@ import { Input } from "@/components/ui/input";
 import { signOut } from 'firebase/auth';
 import { LayoutGrid, List, Search } from 'lucide-react';
 
-export default function AdminPage() {
-    const [user, loading, error] = useAuthState(auth);
+
+const withAuth = <P extends object>(Component: React.ComponentType<P>) => {
+    const AuthComponent = (props: P) => {
+        const [user, loading, error] = useAuthState(auth);
+        const router = useRouter();
+
+        useEffect(() => {
+            if (!loading && !user) {
+                router.replace('/login');
+            }
+        }, [user, loading, router]);
+
+        if (loading || !user) {
+            return (
+                <div className="flex items-center justify-center min-h-screen bg-[#1a2332]">
+                    <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-yellow-500"></div>
+                </div>
+            );
+        }
+
+        return <Component {...props} />;
+    };
+    return AuthComponent;
+};
+
+
+function AdminPanel() {
+    const [user] = useAuthState(auth); 
     const router = useRouter();
     const [reports, setReports] = useState<AdminReport[]>([]);
     const [initialLoading, setInitialLoading] = useState(true);
@@ -22,37 +48,64 @@ export default function AdminPage() {
     const [filter, setFilter] = useState<"all" | AdminReport['status']>('pending');
     const [searchQuery, setSearchQuery] = useState("");
 
-    useEffect(() => {
-        if (!loading && !user) {
-            router.replace('/login');
-        }
-    }, [user, loading, router]);
+    const getIdToken = useCallback(() => user?.getIdToken(), [user]);
 
     useEffect(() => {
+        const fetchReports = async () => {
+            try {
+                const token = await getIdToken();
+                const fetchedReports = await getAdminReports(token);
+                setReports(fetchedReports);
+            } catch (err) {
+                console.error("Error fetching reports: ", err);
+                // Optionally, handle auth errors (e.g., by redirecting to login)
+                if (err instanceof Error && (err.message.includes('401') || err.message.includes('403'))) {
+                    router.replace("/login");
+                }
+            } finally {
+                setInitialLoading(false);
+            }
+        };
+
         if (user) {
-            getAdminReports()
-                .then(setReports)
-                .catch(err => console.error("Error fetching reports: ", err))
-                .finally(() => setInitialLoading(false));
+            fetchReports();
         }
-    }, [user]);
+    }, [user, getIdToken, router]);
 
-    const handleReportUpdate = useCallback((reportIds: string[], newStatus: AdminReport['status']) => {
-        setReports(currentReports =>
-            currentReports.map(report =>
-                reportIds.includes(report.id) ? { ...report, status: newStatus } : report
-            )
-        );
-    }, []);
 
-    const handleReportDelete = useCallback((reportIds: string[]) => {
-        setReports(currentReports =>
-            currentReports.filter(report => !reportIds.includes(report.id))
-        );
-    }, []);
+    const handleReportUpdate = useCallback(async (reportIds: string[], newStatus: AdminReport['status']) => {
+        const token = await getIdToken();
+        try {
+            await updateReportsStatus(token, reportIds, newStatus);
+            setReports(currentReports =>
+                currentReports.map(report =>
+                    reportIds.includes(report.id) ? { ...report, status: newStatus } : report
+                )
+            );
+        } catch (error) {
+            console.error("Failed to update report status:", error);
+            alert("Error al actualizar el estado del reporte. Verifique su sesión y permisos.");
+        }
+    }, [getIdToken]);
+
+    const handleReportDelete = useCallback(async (reportIds: string[]) => {
+        if (!window.confirm(`¿Está seguro que desea eliminar ${reportIds.length} reporte(s)? Esta acción es irreversible.`)) {
+            return;
+        }
+        const token = await getIdToken();
+        try {
+            await deleteMultipleReports(token, reportIds);
+            setReports(currentReports =>
+                currentReports.filter(report => !reportIds.includes(report.id))
+            );
+        } catch (error) {
+            console.error("Failed to delete reports:", error);
+            alert("Error al eliminar los reportes. Verifique su sesión y permisos.");
+        }
+    }, [getIdToken]);
+
 
     const filteredReports = useMemo(() => {
-        if (!reports) return [];
         return reports
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
             .filter(report => filter === 'all' || report.status === filter)
@@ -64,20 +117,19 @@ export default function AdminPage() {
             });
     }, [reports, filter, searchQuery]);
 
-
     const handleLogout = async () => {
         await signOut(auth);
         router.push('/login');
     };
 
-    if (loading || initialLoading || !user) {
+    if (initialLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[#1a2332]">
+             <div className="flex items-center justify-center min-h-screen bg-[#1a2332]">
                 <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-yellow-500"></div>
             </div>
         );
     }
-    
+
     return (
         <div className="h-screen flex flex-col bg-[#1a2332] text-white">
             <header className="container mx-auto px-4 flex-shrink-0">
@@ -93,7 +145,7 @@ export default function AdminPage() {
                     
                     <Card className="bg-gray-800/50 border-gray-700 my-4">
                         <CardContent className="p-4 space-y-4">
-                            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                                 <div className="relative flex-grow w-full">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                                     <Input placeholder="Buscar por cédula o nombre..." className="pl-10 w-full bg-gray-900 border-gray-600 text-white" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
@@ -126,3 +178,5 @@ export default function AdminPage() {
         </div>
     );
 }
+
+export default withAuth(AdminPanel);

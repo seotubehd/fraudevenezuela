@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from "react";
-import { AdminReport, updateReportStatus, deleteMultipleReports } from "@/lib/services/admin";
+import { AdminReport } from "@/lib/services/admin"; // Keep the type, remove functions
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -18,6 +18,7 @@ interface ReportsTableProps {
     viewMode: 'grid' | 'list';
 }
 
+// ... (Helper components like getStatusClasses, DetailItem, etc. remain unchanged) ...
 const getStatusClasses = (status: AdminReport['status']) => {
     switch (status) {
         case "verified": return "bg-green-500/10 text-green-400 border-green-500/30";
@@ -85,14 +86,12 @@ export function ReportsTable({ reports, onReportUpdate, onReportDelete, viewMode
     const [selectedReport, setSelectedReport] = useState<AdminReport | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalStatus, setModalStatus] = useState<AdminReport['status']>('pending');
-    const [loading, setLoading] = useState(false);
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
     const [selectedImageUrl, setSelectedImageUrl] = useState("");
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 10;
 
-    // Reset pagination and selection when the filtered reports change
     useEffect(() => {
         setCurrentPage(1);
         setSelectedIds([]);
@@ -116,37 +115,23 @@ export function ReportsTable({ reports, onReportUpdate, onReportDelete, viewMode
         }
     };
 
-    const handleSaveChanges = async () => {
+    // MODIFIED: Use the onReportUpdate prop from the parent
+    const handleSaveChanges = () => {
         if (!selectedReport) return;
-        setLoading(true);
-        try {
-            await updateReportStatus(selectedReport.id, modalStatus, selectedReport);
-            onReportUpdate([selectedReport.id], modalStatus);
-            setIsModalOpen(false);
-        } catch (error) {
-            console.error("Failed to update status:", error);
-        } finally {
-            setLoading(false);
-        }
+        onReportUpdate([selectedReport.id], modalStatus);
+        setIsModalOpen(false);
     };
 
-    const handleBulkAction = async (action: 'verified' | 'rejected' | 'delete') => {
+    // MODIFIED: Use onReportUpdate and onReportDelete props
+    const handleBulkAction = (action: 'verified' | 'rejected' | 'delete') => {
         if (selectedIds.length === 0) return;
-        setLoading(true);
-        try {
-            if (action === 'delete') {
-                await deleteMultipleReports(selectedIds);
-                onReportDelete(selectedIds);
-            } else {
-                await Promise.all(selectedIds.map(id => updateReportStatus(id, action, {})));
-                onReportUpdate(selectedIds, action);
-            }
-            setSelectedIds([]);
-        } catch (error) {
-            console.error(`Failed to perform bulk action (${action}):`, error);
-        } finally {
-            setLoading(false);
+        
+        if (action === 'delete') {
+            onReportDelete(selectedIds);
+        } else {
+            onReportUpdate(selectedIds, action);
         }
+        setSelectedIds([]); // Clear selection after action
     };
 
     const openModal = (report: AdminReport) => {
@@ -162,6 +147,7 @@ export function ReportsTable({ reports, onReportUpdate, onReportDelete, viewMode
 
     return (
         <div className="space-y-4 pb-24">
+            {/* ... (JSX for bulk actions bar, grid/list view, pagination etc. remains unchanged) ... */}
             <div className="flex justify-between items-center px-1">
                 <div className="flex items-center gap-3">
                     {paginatedReports.length > 0 && (
@@ -204,14 +190,16 @@ export function ReportsTable({ reports, onReportUpdate, onReportDelete, viewMode
                         <div className="p-6 flex-grow overflow-y-auto"><div className="grid md:grid-cols-2 gap-x-8 gap-y-6"><div className="space-y-4"><SectionTitle>Detalles del Incidente</SectionTitle><DetailItem icon={<FileText size={16} />} label="Descripción" value={selectedReport.description} isTextArea /><DetailItem icon={<LinkIcon size={16} />} label="Plataforma" value={selectedReport.socialNetwork} /><DetailItem icon={<LinkIcon size={16} />} label="Perfil/URL del Estafador" value={selectedReport.profileUrl} isLink /><SectionTitle>Datos del Estafador</SectionTitle><DetailItem icon={<Landmark size={16} />} label="Cuenta Bancaria" value={selectedReport.scammerBankAccount} /><DetailItem icon={<Smartphone size={16} />} label="Pago Móvil" value={selectedReport.scammerPagoMovil} /><DetailItem icon={<Phone size={16} />} label="Teléfono" value={selectedReport.scammerPhone} /></div><div className="space-y-4"><SectionTitle>Información del Reportante</SectionTitle><DetailItem icon={<User size={16} />} label="Nombre" value={selectedReport.reporterName} /><DetailItem icon={<Mail size={16} />} label="Email" value={selectedReport.contactEmail} /><DetailItem icon={<Smartphone size={16} />} label="WhatsApp" value={selectedReport.reporterWhatsapp} />{selectedReport.evidencias && selectedReport.evidencias.length > 0 && (<div><SectionTitle>Evidencias</SectionTitle><div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2 rounded-lg bg-black/20 p-3">{selectedReport.evidencias.map((url, index) => (<button key={index} onClick={() => openImageModal(url)} className="block rounded-lg overflow-hidden border-2 border-gray-700 hover:border-yellow-500 focus:outline-none focus:ring-2 ring-offset-2 ring-offset-gray-900 focus:ring-yellow-500"><img src={url} alt={`Evidencia ${index + 1}`} className="w-full h-24 object-cover" /></button>))}</div></div>)}</div></div></div>
                         <DialogFooter className="p-4 border-t border-gray-700 flex-shrink-0 flex flex-col-reverse sm:flex-row sm:justify-between sm:items-center gap-3 w-full">
                              <div className="w-full sm:w-auto"><Select value={modalStatus} onValueChange={(v) => setModalStatus(v as any)}><SelectTrigger className="w-full sm:w-48 bg-gray-800 border-gray-600 text-gray-200 focus:ring-yellow-500"><SelectValue placeholder="Cambiar estado..." /></SelectTrigger><SelectContent className="bg-gray-800 text-white border-gray-600"><SelectItem value="pending">Pendiente</SelectItem><SelectItem value="verified">Verificado</SelectItem><SelectItem value="rejected">Rechazado</SelectItem></SelectContent></Select></div>
-                            <div className="flex gap-3 w-full sm:w-auto"><DialogClose asChild><Button variant="outline" className="w-full sm:w-auto bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700">Cancelar</Button></DialogClose><Button onClick={handleSaveChanges} disabled={loading} className="w-full sm:w-auto bg-yellow-500 text-black hover:bg-yellow-600 disabled:opacity-50">{loading ? "Guardando..." : "Guardar Cambios"}</Button></div>
+                            {/* MODIFIED: Removed loading state as parent handles it */}
+                            <div className="flex gap-3 w-full sm:w-auto"><DialogClose asChild><Button variant="outline" className="w-full sm:w-auto bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700">Cancelar</Button></DialogClose><Button onClick={handleSaveChanges} className="w-full sm:w-auto bg-yellow-500 text-black hover:bg-yellow-600 disabled:opacity-50">Guardar Cambios</Button></div>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>)}
 
             {isImageModalOpen && (<Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}><DialogContent className="p-1 bg-transparent border-0 max-w-5xl w-full h-auto"><img src={selectedImageUrl} alt="Evidencia ampliada" className="rounded-lg object-contain max-h-[90vh] w-full mx-auto" /></DialogContent></Dialog>)}
-
-            {selectedIds.length > 0 && (<div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-yellow-500/50 shadow-lg z-20 p-3 flex justify-between items-center animate-fade-in-up"><p className="text-white font-semibold">{selectedIds.length} reporte(s) seleccionado(s)</p><div className="flex items-center gap-2"><Button size="sm" variant="outline" onClick={() => handleBulkAction('verified')} disabled={loading} className="bg-green-600/20 border-green-500 text-green-300 hover:bg-green-600/40 hover:text-green-200"><CheckCircle className="mr-2 h-4 w-4"/> Aprobar</Button><Button size="sm" variant="outline" onClick={() => handleBulkAction('rejected')} disabled={loading} className="bg-red-600/20 border-red-500 text-red-300 hover:bg-red-600/40 hover:text-red-200"><XCircle className="mr-2 h-4 w-4"/> Rechazar</Button><Button size="sm" variant="destructive" onClick={() => handleBulkAction('delete')} disabled={loading}><Trash2 className="mr-2 h-4 w-4"/> Eliminar</Button></div></div>)}
+            
+            {/* MODIFIED: Removed loading state as parent handles it */}
+            {selectedIds.length > 0 && (<div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-yellow-500/50 shadow-lg z-20 p-3 flex justify-between items-center animate-fade-in-up"><p className="text-white font-semibold">{selectedIds.length} reporte(s) seleccionado(s)</p><div className="flex items-center gap-2"><Button size="sm" variant="outline" onClick={() => handleBulkAction('verified')} className="bg-green-600/20 border-green-500 text-green-300 hover:bg-green-600/40 hover:text-green-200"><CheckCircle className="mr-2 h-4 w-4"/> Aprobar</Button><Button size="sm" variant="outline" onClick={() => handleBulkAction('rejected')} className="bg-red-600/20 border-red-500 text-red-300 hover:bg-red-600/40 hover:text-red-200"><XCircle className="mr-2 h-4 w-4"/> Rechazar</Button><Button size="sm" variant="destructive" onClick={() => handleBulkAction('delete')}><Trash2 className="mr-2 h-4 w-4"/> Eliminar</Button></div></div>)}
         </div>
     );
 }
