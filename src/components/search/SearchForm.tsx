@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import ReCAPTCHA from 'react-google-recaptcha';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,58 +15,14 @@ import {
 export function SearchForm() {
     const [cedula, setCedula] = useState('');
     const [nacionalidad, setNacionalidad] = useState('V');
-    const [searchCount, setSearchCount] = useState(0);
-    const [showCaptcha, setShowCaptcha] = useState(false);
-    const [isCaptchaVerified, setCaptchaVerified] = useState(false);
-
-    useEffect(() => {
-        const fetchSearchCount = async () => {
-            try {
-                const response = await fetch('/api/search-count');
-                if (response.ok) {
-                    const data = await response.json();
-                    const count = data.count || 0;
-                    setSearchCount(count);
-                    if (count >= 5) {
-                        setShowCaptcha(true);
-                    }
-                }
-            } catch (error) {
-                console.error('Error fetching search count:', error);
-            }
-        };
-
-        fetchSearchCount();
-    }, []);
-
-    const handleCaptchaChange = (value: string | null) => {
-        if (value) {
-            setCaptchaVerified(true);
-        }
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (cedula.trim()) {
-            if (showCaptcha && !isCaptchaVerified) {
-                alert('Por favor, completa el reCAPTCHA.');
-                return;
-            }
-
-            if (showCaptcha && isCaptchaVerified) {
-                try {
-                    await fetch('/api/reset-search-count', { method: 'POST' });
-                } catch (error) {
-                    console.error('Error resetting search count:', error);
-                }
-            }
-
             const absolutePath = `/${nacionalidad}${cedula.trim()}`;
             window.location.href = absolutePath;
         }
     };
-    
-    console.log("Clave de sitio para ReCAPTCHA:", process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY);
 
     return (
         <div className="bg-[#2a3544] rounded-lg p-6 shadow-xl border border-gray-700">
@@ -98,21 +53,11 @@ export function SearchForm() {
                     </div>
                     <Button
                         type="submit"
-                        disabled={showCaptcha && !isCaptchaVerified}
                         className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-600 text-black font-semibold"
                     >
                         Buscar
                     </Button>
                 </div>
-                {showCaptcha && (
-                    <div className="mt-4 flex justify-center">
-                        <ReCAPTCHA
-                            sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
-                            onChange={handleCaptchaChange}
-                            theme="dark"
-                        />
-                    </div>
-                )}
             </form>
         </div>
     );
