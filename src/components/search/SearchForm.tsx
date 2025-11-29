@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-// Eliminamos la importación de useRouter ya que no la usaremos más.
-// import { useRouter } from 'next/navigation'; 
+import { useState, useEffect } from 'react';
+import ReCAPTCHA from 'react-google-recaptcha';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,25 +14,60 @@ import {
 } from '@/components/ui/select';
 
 export function SearchForm() {
-    // Ya no necesitamos inicializar el router.
-    // const router = useRouter();
     const [cedula, setCedula] = useState('');
     const [nacionalidad, setNacionalidad] = useState('V');
+    const [searchCount, setSearchCount] = useState(0);
+    const [showCaptcha, setShowCaptcha] = useState(false);
+    const [isCaptchaVerified, setCaptchaVerified] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    useEffect(() => {
+        const fetchSearchCount = async () => {
+            try {
+                const response = await fetch('/api/search-count');
+                if (response.ok) {
+                    const data = await response.json();
+                    const count = data.count || 0;
+                    setSearchCount(count);
+                    if (count >= 5) {
+                        setShowCaptcha(true);
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching search count:', error);
+            }
+        };
+
+        fetchSearchCount();
+    }, []);
+
+    const handleCaptchaChange = (value: string | null) => {
+        if (value) {
+            setCaptchaVerified(true);
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (cedula.trim()) {
+            if (showCaptcha && !isCaptchaVerified) {
+                alert('Por favor, completa el reCAPTCHA.');
+                return;
+            }
+
+            if (showCaptcha && isCaptchaVerified) {
+                try {
+                    await fetch('/api/reset-search-count', { method: 'POST' });
+                } catch (error) {
+                    console.error('Error resetting search count:', error);
+                }
+            }
+
             const absolutePath = `/${nacionalidad}${cedula.trim()}`;
-            
-            // --- LA CORRECCIÓN CLAVE ---
-            // Reemplazamos router.push por window.location.href.
-            // Esto fuerza una recarga completa de la página, evitando la navegación
-            // del lado del cliente que estaba causando inconsistencias con la API externa.
-            // Ahora, cada búsqueda será tratada como la primera, asegurando que la 
-            // lógica del servidor se ejecute de manera predecible siempre.
             window.location.href = absolutePath;
         }
     };
+    
+    console.log("Clave de sitio para ReCAPTCHA:", process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY);
 
     return (
         <div className="bg-[#2a3544] rounded-lg p-6 shadow-xl border border-gray-700">
@@ -64,11 +98,21 @@ export function SearchForm() {
                     </div>
                     <Button
                         type="submit"
+                        disabled={showCaptcha && !isCaptchaVerified}
                         className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-600 text-black font-semibold"
                     >
                         Buscar
                     </Button>
                 </div>
+                {showCaptcha && (
+                    <div className="mt-4 flex justify-center">
+                        <ReCAPTCHA
+                            sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
+                            onChange={handleCaptchaChange}
+                            theme="dark"
+                        />
+                    </div>
+                )}
             </form>
         </div>
     );

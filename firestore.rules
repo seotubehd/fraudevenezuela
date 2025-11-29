@@ -10,7 +10,6 @@ service cloud.firestore {
       allow update, delete: if request.auth != null; // Solo admins autenticados pueden modificar o borrar.
     }
 
-    // --- NUEVAS REGLAS ---
     // Reglas para la colección de datos de personas cacheados
     match /people/{personId} {
       // Cualquiera puede leer los datos de una persona (necesario para mostrar la información).
@@ -22,6 +21,12 @@ service cloud.firestore {
 
       // Nadie puede modificar o borrar un registro de persona una vez creado.
       allow update, delete: if false;
+    }
+
+    // Reglas para el contador de búsquedas
+    match /searchCounts/{searchCounter} {
+        // Cualquiera (nuestra API y nuestro servidor) puede leer y escribir en el contador.
+        allow read, write: if true;
     }
   }
 }
