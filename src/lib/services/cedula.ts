@@ -1,26 +1,20 @@
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, Timestamp, doc, getDoc, setDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, Timestamp, doc, getDoc } from "firebase/firestore";
 import type { Report as AppReport, ReportStatus } from "@/types/report";
-import { incrementSearchCount } from "@/lib/services/search"; // CORREGIDO: Usar alias de ruta
+import { incrementSearchCount } from "@/lib/services/search";
 
-// --- Interfaces (sin cambios) ---
 interface ApiCedulaData { nacionalidad: string; cedula: number; rif: string; primer_apellido: string; segundo_apellido: string; primer_nombre: string; segundo_nombre: string; cne?: { estado: string; municipio: string; parroquia: string; centro_electoral: string; }; }
 export interface CedulaData { cedula: string; nombre: string; estado: string; municipio: string; parroquia:string; centro: string; }
 interface ReportDocument { id: string; nombreCompleto: string; cedula: string; createdAt: Timestamp; estado: 'pending' | 'verified' | 'rejected'; socialNetwork?: string; profileUrl?: string; scamType?: string; descripcion?: string; evidencias?: string[]; scammerPhone?: string; scammerPagoMovil?: string; scammerBankAccount?: string; caseType?: string; caseDescription?: string; status?: 'pending' | 'verified' | 'rejected'; evidenceUrls?: string[]; phone?: string; pagoMovil?: string; bankAccount?: string; reporterName?: string; }
 export type Report = Omit<AppReport, 'nombreCompleto' | 'contactEmail'> & { reporterName?: string };
 
-// =========================================================================
-// LÓGICA DE ALMACENAMIENTO PERMANENTE EN FIRESTORE
-// =========================================================================
-
 export async function getCedula(cedula: string): Promise<CedulaData | null> {
     console.log(`[getCedula] Buscando datos para la cédula: ${cedula}`);
-    await incrementSearchCount(); // Incrementar el contador en cada llamada
+    await incrementSearchCount();
 
     const peopleRef = doc(db, "people", cedula);
 
     try {
-        // 1. Check Firestore first
         const docSnap = await getDoc(peopleRef);
 
         if (docSnap.exists()) {
@@ -28,7 +22,6 @@ export async function getCedula(cedula: string): Promise<CedulaData | null> {
             return docSnap.data() as CedulaData;
         }
 
-        // 2. If not in Firestore, fetch from external API
         console.log(`[getCedula] MISS: Datos no encontrados en Firestore. Buscando en la API externa para ${cedula}.`);
         
         const appId = process.env.CEDULA_API_APP_ID;
@@ -70,9 +63,22 @@ export async function getCedula(cedula: string): Promise<CedulaData | null> {
             centro: cneData.centro_electoral
         };
 
-        // 3. Save the new data to Firestore for future requests
-        console.log(`[getCedula] Datos obtenidos de la API. Guardando en Firestore para ${cedula}.`);
-        await setDoc(peopleRef, personData);
+        // --- CHANGE START: Use absolute URL for API call ---
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+        if (!siteUrl) {
+            console.error("[getCedula] ERROR CRÍTICO: La variable de entorno NEXT_PUBLIC_SITE_URL no está configurada.");
+            throw new Error("La URL del sitio no está configurada.");
+        }
+
+        console.log(`[getCedula] Datos obtenidos de la API. Guardando en Firestore a través de la API para ${cedula}.`);
+        await fetch(`${siteUrl}/api/add-person`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ cedula: personData.cedula, personData }),
+        });
+        // --- CHANGE END ---
 
         return personData;
 
@@ -82,13 +88,11 @@ export async function getCedula(cedula: string): Promise<CedulaData | null> {
     }
 }
 
-
-// --- OBTENER REPORTES (SIN CACHÉ) - NO CHANGES HERE ---
 export async function getReportsByCedula(cedula: string): Promise<Report[]> {
     console.log(`[getReportsByCedula] Buscando reportes en tiempo real para: ${cedula}`);
     try {
         const reportsRef = collection(db, "reports");
-        const q = query(reportsRef, where("cedula", "==", cedula), where("estado", "==", "verified"));
+        const q = query(reportsRef, where("cedula", "==", cedula), where("status", "==", "verified"));
         const querySnapshot = await getDocs(q);
         console.log(`[getReportsByCedula] Consulta a Firestore completada. ${querySnapshot.docs.length} reportes encontrados.`);
 
