@@ -46,7 +46,7 @@ export function Uploader({ onUploadComplete }: UploaderProps) {
             try {
                 setFiles(prev => prev.map(f => f.file === fileUpload.file ? { ...f, status: 'uploading' } : f));
 
-                const apiUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/upload`;
+                const apiUrl = '/api/upload'; // Correct: Use relative path for the API call
                 const res = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -73,6 +73,7 @@ export function Uploader({ onUploadComplete }: UploaderProps) {
                     throw new Error(`Error al subir a R2: ${uploadRes.statusText}`);
                 }
                 
+                // Correct: Construct the public URL using the environment variable for display
                 const publicUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${fileUpload.file.name}`;
                 successfulUrls.push(publicUrl);
                 
@@ -93,8 +94,6 @@ export function Uploader({ onUploadComplete }: UploaderProps) {
     };
     
     const handleDone = () => {
-        // La función onUploadComplete ya se llamó en handleUpload.
-        // Esta función solo necesita limpiar el estado y cerrar el diálogo.
         setFiles([]);
         setIsOpen(false);
     };

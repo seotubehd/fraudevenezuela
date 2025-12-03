@@ -1,5 +1,7 @@
 import { adminDb } from '@/lib/firebase/admin';
 
+export const revalidate = 86400; // Revalidate every 24 hours
+
 export async function GET() {
     const baseUrl = 'https://fraudevenezuela.info';
     const reportsSnapshot = await adminDb.collection('reports').get();
