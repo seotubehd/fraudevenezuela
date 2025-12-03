@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, increment } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 const COUNT_DOCUMENT_ID = 'search_counter';
@@ -10,34 +10,13 @@ export async function getSearchCount(): Promise<number> {
         if (docSnap.exists()) {
             return docSnap.data().count || 0;
         } else {
+            // If the document doesn't exist, it might be because it hasn't been created by the server-side API yet.
+            // We can initialize it here for the client-side display.
             await setDoc(countsCollectionRef, { count: 0 });
             return 0;
         }
     } catch (error) {
         console.error("Error al obtener el recuento de búsquedas:", error);
         return 0;
-    }
-}
-
-export async function incrementSearchCount(): Promise<void> {
-    try {
-        const docSnap = await getDoc(countsCollectionRef);
-        if (docSnap.exists()) {
-            await updateDoc(countsCollectionRef, {
-                count: increment(1)
-            });
-        } else {
-            await setDoc(countsCollectionRef, { count: 1 });
-        }
-    } catch (error) {
-        console.error("Error al incrementar el recuento de búsquedas:", error);
-    }
-}
-
-export async function resetSearchCount(): Promise<void> {
-    try {
-        await setDoc(countsCollectionRef, { count: 0 });
-    } catch (error) {
-        console.error("Error al restablecer el recuento de búsquedas:", error);
     }
 }

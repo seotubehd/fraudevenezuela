@@ -19,8 +19,21 @@ export function SearchForm() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (cedula.trim()) {
-            const absolutePath = `/${nacionalidad}${cedula.trim()}`;
-            window.location.href = absolutePath;
+            const fullCedula = `${nacionalidad}${cedula.trim()}`;
+
+            try {
+                await fetch('/api/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ cedula: fullCedula }),
+                });
+            } catch (error) {
+                console.error("Error calling /api/search:", error);
+            }
+
+            window.location.href = `/${fullCedula}`;
         }
     };
 

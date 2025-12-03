@@ -4,12 +4,12 @@ import * as admin from 'firebase-admin';
 if (!admin.apps.length) {
   try {
     // Ensure the environment variable is present
-    if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-      throw new Error('The FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
+    if (!process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
+      throw new Error('The FIREBASE_SERVICE_ACCOUNT_BASE64 environment variable is not set.');
     }
     
     const serviceAccount = JSON.parse(
-      Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_KEY, 'base64').toString('utf-8')
+      Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf-8')
     );
     
     admin.initializeApp({

@@ -1,7 +1,6 @@
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, Timestamp, doc, getDoc } from "firebase/firestore";
 import type { Report as AppReport, ReportStatus } from "@/types/report";
-import { incrementSearchCount } from "@/lib/services/search";
 
 interface ApiCedulaData { nacionalidad: string; cedula: number; rif: string; primer_apellido: string; segundo_apellido: string; primer_nombre: string; segundo_nombre: string; cne?: { estado: string; municipio: string; parroquia: string; centro_electoral: string; }; }
 export interface CedulaData { cedula: string; nombre: string; estado: string; municipio: string; parroquia:string; centro: string; }
@@ -10,7 +9,6 @@ export type Report = Omit<AppReport, 'nombreCompleto' | 'contactEmail'> & { repo
 
 export async function getCedula(cedula: string): Promise<CedulaData | null> {
     console.log(`[getCedula] Buscando datos para la cédula: ${cedula}`);
-    await incrementSearchCount();
 
     const peopleRef = doc(db, "people", cedula);
 
