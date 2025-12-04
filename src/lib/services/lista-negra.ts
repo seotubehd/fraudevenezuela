@@ -1,5 +1,4 @@
-
-import { adminDb } from '@/lib/firebase/admin';
+import { adminDb as db } from '@/lib/firebase/admin';
 
 export interface ReportedPerson {
   cedula: string;
@@ -7,53 +6,48 @@ export interface ReportedPerson {
   reportCount: number;
 }
 
-const PAGE_SIZE = 50;
-
 /**
- * Fetches a single page of reported people from the summary collection.
- * This is the most efficient method, performing a paginated server-side query.
+ * Fetches all verified reports and processes them in-memory to generate a blacklist summary.
+ * This method is robust and avoids complex queries that require manual indexes.
  */
-export async function getReportedPeople(page: number = 1): Promise<ReportedPerson[]> {
-  try {
-    const offset = (page - 1) * PAGE_SIZE;
+export async function getBlacklistSummary(options: { limit?: number } = {}): Promise<ReportedPerson[]> {
+  const reportLimit = options.limit || 10;
 
-    const summarySnapshot = await adminDb.collection('listaNegraResumen')
-                                         .orderBy('reportCount', 'desc')
-                                         .limit(PAGE_SIZE)
-                                         .offset(offset)
-                                         .get();
+  // 1. Fetch all verified reports with a simple query.
+  const reportsSnapshot = await db
+    .collection('reports')
+    .where('status', '==', 'verified')
+    .get();
 
-    if (summarySnapshot.empty) {
-      return [];
+  if (reportsSnapshot.empty) {
+    return [];
+  }
+
+  // 2. Process reports in-memory to count occurrences.
+  const peopleCount = new Map<string, ReportedPerson>();
+
+  reportsSnapshot.forEach(doc => {
+    const report = doc.data();
+    const cedula = report.cedula;
+
+    if (peopleCount.has(cedula)) {
+      // Increment count if person already exists
+      const person = peopleCount.get(cedula)!;
+      person.reportCount += 1;
+    } else {
+      // Add person to map if new
+      peopleCount.set(cedula, {
+        cedula: cedula,
+        nombreCompleto: report.nombreCompleto,
+        reportCount: 1,
+      });
     }
+  });
 
-    const reportedPeople: ReportedPerson[] = summarySnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        cedula: data.cedula,
-        nombreCompleto: data.nombreCompleto,
-        reportCount: data.reportCount,
-      };
-    });
+  // 3. Convert map to array, sort by report count, and get top N.
+  const allReportedPeople = Array.from(peopleCount.values());
 
-    return reportedPeople;
+  allReportedPeople.sort((a, b) => b.reportCount - a.reportCount);
 
-  } catch (error) {
-    console.error('Error fetching paginated reported people:', error);
-    throw error; // Re-throw to be handled by the API route
-  }
-}
-
-/**
- * Gets the total count of documents in the listaNegraResumen collection.
- * This uses the efficient .getCount() method.
- */
-export async function getReportedPeopleCount(): Promise<number> {
-  try {
-    const snapshot = await adminDb.collection('listaNegraResumen').count().get();
-    return snapshot.data().count;
-  } catch (error) {
-    console.error("Error getting reported people count:", error);
-    throw error; // Re-throw to be handled by the API route
-  }
+  return allReportedPeople.slice(0, reportLimit);
 }

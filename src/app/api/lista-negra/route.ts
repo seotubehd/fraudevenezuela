@@ -1,45 +1,31 @@
-// src/app/api/lista-negra/route.ts
-import { getReportedPeople, getReportedPeopleCount } from "@/lib/services/lista-negra";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
+import { getBlacklistSummary } from '@/lib/services/lista-negra';
 
-const PAGE_SIZE = 50;
-
-export async function GET(request: NextRequest) {
+/**
+ * API route to get the top 10 most recently reported individuals from the blacklist summary.
+ * This provides a snapshot of the latest activity.
+ */
+export async function GET() {
   try {
-    const page = parseInt(request.nextUrl.searchParams.get('page') || '1', 10);
+    // Fetch only the top 10 most recent entries
+    const people = await getBlacklistSummary({ limit: 10 });
 
-    const [totalCount, people] = await Promise.all([
-      getReportedPeopleCount(),
-      getReportedPeople(page)
-    ]);
+    return NextResponse.json(people);
 
-    const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  } catch (error: any) {
+    console.error('Error fetching blacklist summary:', error);
 
-    return NextResponse.json({
-      people,
-      totalPages,
-    });
+    // Create a user-friendly error message
+    let errorMessage = 'An unexpected error occurred.';
+    let statusCode = 500;
 
-  } catch (error) {
-    console.error("Error in /api/lista-negra route:", error);
-
-    // Type guard to safely check the structure of the error object
-    if (typeof error === 'object' && error !== null && 'code' in error && 'details' in error) {
-      const firestoreError = error as { code: unknown; details: unknown };
-      if (firestoreError.code === 8) {
-        return new NextResponse(JSON.stringify({
-          message: "RESOURCE_EXHAUSTED: La cuota de lectura de la base de datos ha sido excedida. Esto suele ser temporal. Por favor, inténtalo de nuevo en unos minutos.",
-          error: firestoreError.details
-        }), {
-          status: 429, // 'Too Many Requests' is appropriate here.
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
+    if (error.code === 'resource-exhausted' || (error.message && error.message.includes('RESOURCE_EXHAUSTED'))) {
+      errorMessage = 'La cuota de lectura de la base de datos ha sido excedida. Esto suele ser temporal. Por favor, inténtalo de nuevo en unos minutos.';
+      statusCode = 429; // Too Many Requests
+    } else if (error.message) {
+      errorMessage = error.message;
     }
 
-    return new NextResponse("Internal Server Error", { status: 500 });
+    return NextResponse.json({ message: errorMessage }, { status: statusCode });
   }
 }
-
-// Ensure the data is fetched dynamically on every request
-export const dynamic = 'force-dynamic';
