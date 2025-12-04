@@ -1,36 +1,9 @@
+'use client';
 import admin from 'firebase-admin';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-let app: admin.app.App;
-
-try {
-    console.log('🚀 Initializing Firebase Admin for sitemap generation...');
-
-    if (!process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
-        throw new Error('The FIREBASE_SERVICE_ACCOUNT_BASE64 environment variable is not set.');
-    }
-
-    const serviceAccount = JSON.parse(
-        Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf-8')
-    );
-
-    // Simplified initialization for Vercel compatibility
-    if (admin.apps.length === 0) {
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount)
-        });
-    }
-    app = admin.app(); // Get the default app
-
-    console.log('✅ Firebase Admin for sitemap initialized successfully.');
-} catch (error) {
-    console.error('🚨 FATAL: Error initializing Firebase Admin SDK for sitemap. The build will fail.', error);
-    process.exit(1);
-}
-
-const adminDb = app.firestore();
-
+// Helper to escape XML characters
 const escapeXml = (unsafe: string): string => {
     return unsafe.replace(/[<>&'"]/g, (c) => {
         switch (c) {
@@ -38,52 +11,91 @@ const escapeXml = (unsafe: string): string => {
             case '>': return '&gt;';
             case '&': return '&amp;';
             case '\'': return '&apos;';
-            case '"': return '&quot;';
+            case '\" ': return '&quot;';
             default: return c;
         }
     });
 };
 
+
+// Main function to generate the sitemap
 async function generateSitemap() {
-    console.log('🔥 Generating static sitemap...');
+    console.log('🔥 Generating sitemap...');
     const baseUrl = 'https://fraudevenezuela.info';
     const lastmod = new Date().toISOString();
+    const sitemapPath = path.resolve(process.cwd(), 'public', 'sitemap.xml');
+    
+    const staticUrls = [
+        { loc: baseUrl, changefreq: 'daily', priority: '1.0' },
+        { loc: `${baseUrl}/reportar`, changefreq: 'monthly', priority: '0.9' }
+    ];
+
+    let dynamicUrls: { loc: string; changefreq: string; priority: string; }[] = [];
+
+    // If Firebase credentials are not available (local env), skip fetching dynamic routes
+    if (!process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
+        console.warn('⚠️ WARNING: Firebase credentials not found. Generating sitemap with static pages only.');
+    } else {
+        try {
+            console.log('🚀 Initializing Firebase Admin...');
+            const serviceAccount = JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf-8'));
+            if (admin.apps.length === 0) {
+                admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+            }
+            const adminDb = admin.firestore();
+            console.log('✅ Firebase Admin initialized.');
+
+            console.log('🔍 Fetching dynamic routes from Firestore...');
+            const reportsSnapshot = await adminDb.collection('reports').select('cedula').get();
+            const searchesSnapshot = await adminDb.collection('searches').select('cedula').get();
+            const cedulas = new Set<string>();
+
+            reportsSnapshot.docs.forEach(doc => {
+                const cedula = doc.data().cedula;
+                if (cedula && typeof cedula === 'string' && cedula.trim().length > 0 && cedula !== 'No disponible') {
+                    cedulas.add(cedula.trim());
+                }
+            });
+            searchesSnapshot.docs.forEach(doc => {
+                const cedula = doc.data().cedula;
+                if (cedula && typeof cedula === 'string' && cedula.trim().length > 0 && cedula !== 'No disponible') {
+                    cedulas.add(cedula.trim());
+                }
+            });
+            
+            cedulas.forEach(cedula => {
+                dynamicUrls.push({
+                    loc: `${baseUrl}/${cedula}`,
+                    changefreq: 'weekly',
+                    priority: '0.8'
+                });
+            });
+            console.log(`👍 Found ${cedulas.size} dynamic routes.`);
+
+        } catch (error) {
+            console.error("🚨 CRITICAL: Failed to fetch dynamic routes for sitemap.", error);
+            // We exit here because if credentials are provided, we expect it to work.
+            process.exit(1);
+        }
+    }
+
+    const allUrls = [...staticUrls, ...dynamicUrls];
+    const sitemapContent = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  ${allUrls.map(url => `
+  <url>
+    <loc>${escapeXml(url.loc)}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>${url.changefreq}</changefreq>
+    <priority>${url.priority}</priority>
+  </url>`).join('')}
+</urlset>`;
 
     try {
-        const reportsSnapshot = await adminDb.collection('reports').select('cedula').get();
-        const searchesSnapshot = await adminDb.collection('searches').select('cedula').get();
-
-        const cedulas = new Set<string>();
-
-        reportsSnapshot.docs.forEach(doc => {
-            const cedula = doc.data().cedula;
-            if (cedula && typeof cedula === 'string' && cedula.trim().length > 0 && cedula !== 'No disponible') {
-                cedulas.add(cedula.trim());
-            }
-        });
-
-        searchesSnapshot.docs.forEach(doc => {
-            const cedula = doc.data().cedula;
-            if (cedula && typeof cedula === 'string' && cedula.trim().length > 0 && cedula !== 'No disponible') {
-                cedulas.add(cedula.trim());
-            }
-        });
-
-        let sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>${baseUrl}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n  <url>\n    <loc>${baseUrl}/reportar</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>0.9</priority>\n  </url>`;
-
-        cedulas.forEach(cedula => {
-            const safeUrl = `${baseUrl}/${cedula}`;
-            sitemap += `\n  <url>\n    <loc>${escapeXml(safeUrl)}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`;
-        });
-
-        sitemap += `\n</urlset>`;
-
-        const sitemapPath = path.resolve(process.cwd(), 'public', 'sitemap.xml');
-        await fs.writeFile(sitemapPath, sitemap, 'utf-8');
-        console.log(`✅ Sitemap successfully generated with ${cedulas.size} cedula URLs at: ${sitemapPath}`);
-
+        await fs.writeFile(sitemapPath, sitemapContent.trim(), 'utf-8');
+        console.log(`✅ Sitemap successfully generated with ${allUrls.length} URLs at: ${sitemapPath}`);
     } catch (error) {
-        console.error("🚨 CRITICAL: Sitemap generation failed during data fetching or file writing.", error);
+        console.error("🚨 CRITICAL: Failed to write sitemap file.", error);
         process.exit(1);
     }
 }
