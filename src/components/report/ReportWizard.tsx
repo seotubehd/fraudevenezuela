@@ -122,7 +122,7 @@ export function ReportWizard({ personName, personId }: ReportWizardProps) {
                 socialNetwork: scammerProfile?.socialNetwork || 'No especificada',
                 profileUrl: scammerProfile?.profileUrl || 'No especificada',
                 scamType: scamType,
-                descripcion: evidenceData?.descripcion || '',
+                description: evidenceData?.descripcion || '',
                 scammerBankAccount: evidenceData?.scammerBankAccount || '',
                 scammerPagoMovil: evidenceData?.scammerPagoMovil || '',
                 scammerPhone: evidenceData?.scammerPhone || '',

@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { X } from 'lucide-react';
 
 export interface EvidenceData {
-    descripcion: string;
+    description: string;
     uploadedImageUrls: string[];
     scammerPhone: string;
     scammerPagoMovil: string;
@@ -23,7 +23,7 @@ interface EvidenceFormProps {
 
 const EvidenceForm = ({ onChange, onValidationChange, initialData }: EvidenceFormProps) => {
     const [formData, setFormData] = useState<EvidenceData>(() => ({
-        descripcion: initialData.descripcion || '',
+        description: initialData.description || '',
         scammerPhone: initialData.scammerPhone || '',
         scammerPagoMovil: initialData.scammerPagoMovil || '',
         scammerBankAccount: initialData.scammerBankAccount || '',
@@ -34,14 +34,14 @@ const EvidenceForm = ({ onChange, onValidationChange, initialData }: EvidenceFor
 
     const validate = useCallback(() => {
         const newErrors: Record<string, string> = {};
-        if (!formData.descripcion.trim()) {
-            newErrors.descripcion = 'La descripción de la estafa es obligatoria.';
+        if (!formData.description.trim()) {
+            newErrors.description = 'La descripción de la estafa es obligatoria.';
         }
         if (formData.uploadedImageUrls.length === 0) {
             newErrors.images = 'Debes subir al menos una imagen como evidencia.';
         }
         return newErrors;
-    }, [formData.descripcion, formData.uploadedImageUrls]);
+    }, [formData.description, formData.uploadedImageUrls]);
 
     useEffect(() => {
         onChange(formData);
@@ -72,17 +72,17 @@ const EvidenceForm = ({ onChange, onValidationChange, initialData }: EvidenceFor
     return (
         <div className="animate-fade-in space-y-6">
             <div>
-                <Label htmlFor="descripcion" className="text-base text-gray-300">Descripción de la estafa <span className="text-red-500">*</span></Label>
+                <Label htmlFor="description" className="text-base text-gray-300">Descripción de la estafa <span className="text-red-500">*</span></Label>
                 <Textarea
-                    id="descripcion"
-                    name="descripcion"
-                    value={formData.descripcion}
+                    id="description"
+                    name="description"
+                    value={formData.description}
                     onChange={handleInputChange}
                     required
                     placeholder="Describe brevemente cómo ocurrió la estafa..."
                     className="mt-2 bg-gray-800 border-gray-600 text-white placeholder-gray-500 min-h-[100px]"
                 />
-                {errors.descripcion && <p className="text-red-500 text-sm mt-1">{errors.descripcion}</p>}
+                {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description}</p>}
             </div>
 
             <div>
