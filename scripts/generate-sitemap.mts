@@ -2,29 +2,31 @@ import * as admin from 'firebase-admin';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-// Este es un script independiente. Inicializa una app de Firebase separada.
-let app;
+let app: admin.app.App;
 
 try {
     console.log('🚀 Initializing Firebase Admin for sitemap generation...');
-    
+
     if (!process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
-      throw new Error('The FIREBASE_SERVICE_ACCOUNT_BASE64 environment variable is not set. Sitemap generation cannot proceed.');
+        throw new Error('The FIREBASE_SERVICE_ACCOUNT_BASE64 environment variable is not set.');
     }
-    
+
     const serviceAccount = JSON.parse(
-      Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf-8')
+        Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf-8')
     );
-    
-    // Usa un nombre único para evitar conflictos
-    app = admin.apps.find(a => a?.name === 'sitemap-generator') || admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
-    }, 'sitemap-generator');
+
+    // Simplified initialization for Vercel compatibility
+    if (admin.apps.length === 0) {
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+        });
+    }
+    app = admin.app(); // Get the default app
 
     console.log('✅ Firebase Admin for sitemap initialized successfully.');
 } catch (error) {
     console.error('🚨 FATAL: Error initializing Firebase Admin SDK for sitemap. The build will fail.', error);
-    process.exit(1); // Salir con código de error para fallar la build
+    process.exit(1);
 }
 
 const adminDb = app.firestore();
@@ -67,30 +69,11 @@ async function generateSitemap() {
             }
         });
 
-        let sitemap = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>${baseUrl}</loc>
-    <lastmod>${lastmod}</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>${baseUrl}/reportar</loc>
-    <lastmod>${lastmod}</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>`;
+        let sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>${baseUrl}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n  <url>\n    <loc>${baseUrl}/reportar</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>monthly</changefreq>\n    <priority>0.9</priority>\n  </url>`;
 
         cedulas.forEach(cedula => {
             const safeUrl = `${baseUrl}/${cedula}`;
-            sitemap += `
-  <url>
-    <loc>${escapeXml(safeUrl)}</loc>
-    <lastmod>${lastmod}</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>`;
+            sitemap += `\n  <url>\n    <loc>${escapeXml(safeUrl)}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`;
         });
 
         sitemap += `\n</urlset>`;
@@ -101,7 +84,7 @@ async function generateSitemap() {
 
     } catch (error) {
         console.error("🚨 CRITICAL: Sitemap generation failed during data fetching or file writing.", error);
-        process.exit(1); // Fail the build
+        process.exit(1);
     }
 }
 
