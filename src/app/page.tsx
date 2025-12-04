@@ -1,4 +1,6 @@
 import { SearchForm } from "@/components/search/SearchForm";
+import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 
 export default function Home() {
   return (
@@ -21,6 +23,12 @@ export default function Home() {
       <main className="flex-1 flex items-start justify-center px-4 pt-4 sm:pt-8">
         <div className="w-full max-w-2xl">
           <SearchForm />
+          <div className="mt-4 text-center">
+          <Link href="/lista-negra" className="inline-flex items-center justify-center px-6 py-3 border border-yellow-500 text-base font-medium rounded-md text-yellow-500 bg-transparent hover:bg-yellow-500 hover:text-black transition-colors">
+              <ShieldCheck className="mr-3 -ml-1 h-5 w-5" />
+              Lista Negra de Estafadores
+            </Link>
+          </div>
         </div>
       </main>
 
