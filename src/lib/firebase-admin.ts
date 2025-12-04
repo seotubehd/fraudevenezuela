@@ -20,8 +20,7 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
     }
 } else {
     // If the recommended variable is not found, throw an error with clear instructions.
-    throw new Error(`Missing Firebase Admin SDK credentials. 
-Please create a FIREBASE_SERVICE_ACCOUNT_BASE64 environment variable with the base64-encoded content of your Firebase service account JSON file.`);
+    throw new Error(`Missing Firebase Admin SDK credentials. \nPlease create a FIREBASE_SERVICE_ACCOUNT_BASE64 environment variable with the base64-encoded content of your Firebase service account JSON file.`);
 }
 
 const initializeAdmin = () => {

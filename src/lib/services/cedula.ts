@@ -4,7 +4,34 @@ import type { Report as AppReport, ReportStatus } from "@/types/report";
 
 interface ApiCedulaData { nacionalidad: string; cedula: number; rif: string; primer_apellido: string; segundo_apellido: string; primer_nombre: string; segundo_nombre: string; cne?: { estado: string; municipio: string; parroquia: string; centro_electoral: string; }; }
 export interface CedulaData { cedula: string; nombre: string; estado: string; municipio: string; parroquia:string; centro: string; }
-interface ReportDocument { id: string; nombreCompleto: string; cedula: string; createdAt: Timestamp; estado: 'pending' | 'verified' | 'rejected'; socialNetwork?: string; profileUrl?: string; scamType?: string; descripcion?: string; evidencias?: string[]; scammerPhone?: string; scammerPagoMovil?: string; scammerBankAccount?: string; caseType?: string; caseDescription?: string; status?: 'pending' | 'verified' | 'rejected'; evidenceUrls?: string[]; phone?: string; pagoMovil?: string; bankAccount?: string; reporterName?: string; }
+// Interfaz actualizada para reflejar TODOS los posibles campos de datos del documento de Firestore
+interface ReportDocument { 
+    id: string; 
+    nombreCompleto: string; 
+    cedula: string; 
+    createdAt: Timestamp; 
+    // Campos de estado posibles
+    status?: 'pending' | 'verified' | 'rejected';
+    estado?: 'pending' | 'verified' | 'rejected';
+    // Campos de descripción posibles
+    description?: string; // El nuevo campo
+    descripcion?: string; // El campo antiguo
+    caseDescription?: string; // Otro campo antiguo
+    // Otros campos que hemos visto
+    socialNetwork?: string; 
+    profileUrl?: string; 
+    scamType?: string; 
+    caseType?: string;
+    evidencias?: string[]; 
+    evidenceUrls?: string[];
+    scammerPhone?: string; 
+    phone?: string;
+    scammerPagoMovil?: string; 
+    pagoMovil?: string;
+    scammerBankAccount?: string; 
+    bankAccount?: string;
+    reporterName?: string; 
+}
 export type Report = Omit<AppReport, 'nombreCompleto' | 'contactEmail'> & { reporterName?: string };
 
 export async function getCedula(cedula: string): Promise<CedulaData | null> {
@@ -61,7 +88,6 @@ export async function getCedula(cedula: string): Promise<CedulaData | null> {
             centro: cneData.centro_electoral
         };
 
-        // --- CHANGE START: Use absolute URL for API call ---
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
         if (!siteUrl) {
             console.error("[getCedula] ERROR CRÍTICO: La variable de entorno NEXT_PUBLIC_SITE_URL no está configurada.");
@@ -76,7 +102,6 @@ export async function getCedula(cedula: string): Promise<CedulaData | null> {
             },
             body: JSON.stringify({ cedula: personData.cedula, personData }),
         });
-        // --- CHANGE END ---
 
         return personData;
 
@@ -96,8 +121,12 @@ export async function getReportsByCedula(cedula: string): Promise<Report[]> {
 
         const reports: Report[] = querySnapshot.docs.map(doc => {
             const data = doc.data() as ReportDocument;
+            
             let status: ReportStatus;
-            if (data.status === 'verified') { status = 'approved'; } else if (data.status === 'rejected') { status = 'denied'; } else { status = 'pending'; }
+            const currentStatus = data.status || data.estado; // Considera ambos campos de estado
+            if (currentStatus === 'verified') { status = 'approved'; } 
+            else if (currentStatus === 'rejected') { status = 'denied'; } 
+            else { status = 'pending'; }
             
             return {
                 id: doc.id,
@@ -106,12 +135,15 @@ export async function getReportsByCedula(cedula: string): Promise<Report[]> {
                 status: status,
                 scamType: data.scamType || data.caseType || "other",
                 socialNetwork: data.socialNetwork || "other",
-                descripcion: data.descripcion || data.caseDescription || "Sin descripción.",
+                // --- ¡SOLUCIÓN FINAL! ---
+                // Se prioriza el nuevo campo 'description', pero se mantienen los antiguos como respaldo.
+                // El campo en el objeto de retorno se llama 'descripcion' para que coincida con lo que el componente del cliente espera.
+                descripcion: data.description || data.descripcion || data.caseDescription || "Sin descripción.",
                 profileUrl: data.profileUrl || (data.evidenceUrls && data.evidenceUrls[0]) || "",
                 evidencias: data.evidencias || data.evidenceUrls || [],
-                scammerPhone: data.scammerPhone || data.phone,
-                scammerPagoMovil: data.scammerPagoMovil || data.pagoMovil,
-                scammerBankAccount: data.scammerBankAccount || data.bankAccount,
+                scammerPhone: data.scammerPhone || data.phone || "No disponible",
+                scammerPagoMovil: data.scammerPagoMovil || data.pagoMovil || "No disponible",
+                scammerBankAccount: data.scammerBankAccount || data.bankAccount || "No disponible",
                 reporterName: data.reporterName || "Anónimo",
             };
         });
