@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node --loader ts-node/esm scripts/generate-sitemap.mts && next build",
     "start": "next start",
     "lint": "eslint"
   },
@@ -39,7 +39,8 @@
     "react-dropzone": "^14.3.8",
     "react-firebase-hooks": "^5.1.1",
     "recharts": "^3.5.0",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "ts-node": "^10.9.2" 
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

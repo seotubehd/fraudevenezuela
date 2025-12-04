@@ -103,12 +103,18 @@ const migrateData = async () => {
 
             const cleanedEvidencias = oldReport.evidencias.filter(url => url && url.startsWith('http'));
 
+            // --- ¡LÓGICA DE FECHA MEJORADA! ---
+            let firestoreTimestamp;
             const dateObject = new Date(oldReport.createdAt);
-            if (isNaN(dateObject.getTime())) {
-                console.error(`      ❌ Error: Fecha inválida para C.I. ${oldReport.cedula}. Saltando este registro.`);
-                continue;
+
+            if (oldReport.createdAt && !isNaN(dateObject.getTime())) {
+                // Si la fecha existe y es válida, la usamos
+                firestoreTimestamp = Timestamp.fromDate(dateObject);
+            } else {
+                // Si la fecha NO existe o es inválida, usamos la fecha y hora actual
+                console.warn(`      ⚠️  Advertencia: Fecha inválida o no encontrada para C.I. ${oldReport.cedula}. Usando fecha y hora actual.`);
+                firestoreTimestamp = Timestamp.now();
             }
-            const firestoreTimestamp = Timestamp.fromDate(dateObject);
 
             const newReportData: any = {
                 cedula: formattedCedula, // Usar la cédula formateada
@@ -122,7 +128,7 @@ const migrateData = async () => {
                 scammerBankAccount: oldReport.scammerBankAccount || 'No disponible',
                 evidencias: cleanedEvidencias,
                 reporterName: oldReport.reporterName || 'Anónimo',
-                createdAt: firestoreTimestamp,
+                createdAt: firestoreTimestamp, // Usar el timestamp corregido
                 status: 'pending', // Todos los reportes migrados inician como pendientes
                 estado: 'pending', // Mantenemos ambos campos por consistencia
             };
