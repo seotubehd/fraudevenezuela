@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,29 +11,59 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import WhatsAppShareModal from './WhatsAppShareModal';
 
 export function SearchForm() {
     const [cedula, setCedula] = useState('');
     const [nacionalidad, setNacionalidad] = useState('V');
+    const [searchCount, setSearchCount] = useState(0);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [pendingCedula, setPendingCedula] = useState<string | null>(null);
+
+    useEffect(() => {
+        const count = localStorage.getItem('searchCount');
+        setSearchCount(count ? parseInt(count, 10) : 0);
+    }, []);
+
+    const executeSearch = async (fullCedula: string) => {
+        try {
+            await fetch('/api/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ cedula: fullCedula }),
+            });
+        } catch (error) {
+            console.error("Error calling /api/search:", error);
+        }
+        window.location.href = `/${fullCedula}`;
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (cedula.trim()) {
             const fullCedula = `${nacionalidad}${cedula.trim()}`;
 
-            try {
-                await fetch('/api/search', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ cedula: fullCedula }),
-                });
-            } catch (error) {
-                console.error("Error calling /api/search:", error);
+            if (searchCount >= 3) {
+                setPendingCedula(fullCedula);
+                setIsModalOpen(true);
+            } else {
+                const newCount = searchCount + 1;
+                setSearchCount(newCount);
+                localStorage.setItem('searchCount', newCount.toString());
+                await executeSearch(fullCedula);
             }
+        }
+    };
 
-            window.location.href = `/${fullCedula}`;
+    const handleShare = async () => {
+        setSearchCount(0);
+        localStorage.setItem('searchCount', '0');
+        setIsModalOpen(false);
+        if (pendingCedula) {
+            await executeSearch(pendingCedula);
+            setPendingCedula(null);
         }
     };
 
@@ -72,6 +102,11 @@ export function SearchForm() {
                     </Button>
                 </div>
             </form>
+            <WhatsAppShareModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onShare={handleShare}
+            />
         </div>
     );
 }
