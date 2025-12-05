@@ -1,7 +1,6 @@
-const { initializeApp, cert } = require('firebase-admin/app');
-// Correctly import QueryDocumentSnapshot
-const { getFirestore, Timestamp, QueryDocumentSnapshot } = require('firebase-admin/firestore');
-const dotenv = require('dotenv');
+import { initializeApp, cert } from 'firebase-admin/app';
+import { getFirestore, Timestamp, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import dotenv from 'dotenv';
 
 dotenv.config({ path: './.env.local' });
 
@@ -31,8 +30,7 @@ async function generateBlacklistSummary() {
 
     const summaryMap = new Map();
 
-    // Apply the explicit type to the 'doc' parameter
-    reportsSnapshot.forEach((doc /*: QueryDocumentSnapshot*/) => {
+    reportsSnapshot.forEach((doc: QueryDocumentSnapshot) => {
       const report = doc.data();
       const { cedula, nombreCompleto, createdAt } = report;
 
