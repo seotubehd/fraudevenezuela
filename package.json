@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node --loader ts-node/esm scripts/generate-sitemap.mts && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "generate-summary": "ts-node scripts/generar-resumen.ts"
