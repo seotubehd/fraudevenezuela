@@ -20,8 +20,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } else if (req.method === 'GET') {
     try {
       const doc = await docRef.get();
-      const shareCount = doc.data()?.shareCount || 0;
-      res.status(200).json({ shareCount });
+      if (!doc.exists) {
+        // If the document doesn't exist, create it with a default shareCount of 0.
+        await docRef.set({ shareCount: 0 });
+        res.status(200).json({ shareCount: 0 });
+      } else {
+        // If the document exists, return its shareCount, defaulting to 0 if the field is missing.
+        const shareCount = doc.data()?.shareCount || 0;
+        res.status(200).json({ shareCount });
+      }
     } catch (error) {
       console.error('Error fetching share count:', error);
       res.status(500).json({ error: 'Internal Server Error' });
