@@ -12,9 +12,18 @@ interface WhatsAppShareModalProps {
 const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({ isOpen, onClose, onShare }) => {
   const shareMessage = `¡ALERTA VENEZUELA! ⚠️ ¿Fuiste víctima de una estafa?\n\nMiles de personas son engañadas a diario. Creamos FraudeVenezuela.info, una herramienta comunitaria y GRATUITA donde puedes reportar estafadores y consultar la cédula de cualquier persona antes de hacer un negocio.\n\nNo dejes que te pase a ti o a tus seres queridos. ¡Juntos podemos hacer de la internet un lugar más seguro!\n\nConsulta y reporta aquí: https://fraudevenezuela.info`;
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareMessage)}`;
     window.open(whatsappUrl, '_blank');
+
+    try {
+      await fetch('/api/shares', {
+        method: 'POST',
+      });
+    } catch (error) {
+      console.error('Error incrementing share count:', error);
+    }
+
     onShare();
     onClose();
   };
