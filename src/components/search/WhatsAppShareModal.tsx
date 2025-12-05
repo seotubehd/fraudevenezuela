@@ -13,19 +13,20 @@ const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({ isOpen, onClose
   const shareMessage = `¡ALERTA VENEZUELA! ⚠️ ¿Fuiste víctima de una estafa?\n\nMiles de personas son engañadas a diario. Creamos FraudeVenezuela.info, una herramienta comunitaria y GRATUITA donde puedes reportar estafadores y consultar la cédula de cualquier persona antes de hacer un negocio.\n\nNo dejes que te pase a ti o a tus seres queridos. ¡Juntos podemos hacer de la internet un lugar más seguro!\n\nConsulta y reporta aquí: https://fraudevenezuela.info`;
 
   const handleShare = async () => {
+    // Primero, cierra el modal
+    onClose();
+
+    // Luego, abre la URL de WhatsApp
     const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareMessage)}`;
     window.open(whatsappUrl, '_blank');
 
+    // Finalmente, realiza las acciones de post-compartir
     try {
-      await fetch('/api/shares', {
-        method: 'POST',
-      });
+      await fetch('/api/shares', { method: 'POST' });
+      onShare(); // Llama a la función onShare que puede tener lógica adicional
     } catch (error) {
-      console.error('Error incrementing share count:', error);
+      console.error('Error en las acciones post-compartir:', error);
     }
-
-    onShare();
-    onClose();
   };
 
   return (
