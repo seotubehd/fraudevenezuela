@@ -10,13 +10,7 @@ interface WhatsAppShareModalProps {
 }
 
 const WhatsAppShareModal: React.FC<WhatsAppShareModalProps> = ({ isOpen, onClose, onShare }) => {
-  const shareMessage = `¡ALERTA VENEZUELA! ⚠️ ¿Fuiste víctima de una estafa?
-
-Miles de personas son engañadas a diario. Creamos FraudeVenezuela.info, una herramienta comunitaria y GRATUITA donde puedes reportar estafadores y consultar la cédula de cualquier persona antes de hacer un negocio.
-
-No dejes que te pase a ti o a tus seres queridos. ¡Juntos podemos hacer de la internet un lugar más seguro!
-
-Consulta y reporta aquí: https://fraudevenezuela.info`;
+  const shareMessage = `¡ALERTA VENEZUELA! ⚠️ ¿Fuiste víctima de una estafa?\n\nMiles de personas son engañadas a diario. Creamos FraudeVenezuela.info, una herramienta comunitaria y GRATUITA donde puedes reportar estafadores y consultar la cédula de cualquier persona antes de hacer un negocio.\n\nNo dejes que te pase a ti o a tus seres queridos. ¡Juntos podemos hacer de la internet un lugar más seguro!\n\nConsulta y reporta aquí: https://fraudevenezuela.info`;
 
   const handleShare = () => {
     const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareMessage)}`;
@@ -27,19 +21,21 @@ Consulta y reporta aquí: https://fraudevenezuela.info`;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] bg-gray-800 text-white border-yellow-400">
-        <DialogHeader>
-          <DialogTitle className="text-yellow-400">¡Comparte para continuar!</DialogTitle>
-          <DialogDescription>
-            Para seguir utilizando nuestro servicio, por favor comparte esta información valiosa en WhatsApp.
+      <DialogContent className="w-[90vw] max-w-[425px] bg-gray-900 text-white border-yellow-500 shadow-lg rounded-lg animate-fade-in-up">
+        <DialogHeader className="text-center p-4 sm:p-6">
+          <DialogTitle className="text-xl sm:text-2xl font-bold text-yellow-500">¡Apóyanos y continúa!</DialogTitle>
+          <DialogDescription className="text-sm sm:text-base text-gray-400 mt-2">
+            Ayúdanos a llegar a más personas compartiendo nuestra iniciativa en WhatsApp.
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4">
-          <p className="text-sm text-gray-300">{shareMessage.split('\n').map((line, i) => <span key={i}>{line}<br/></span>)}</p>
+        <div className="py-4 px-4 sm:px-6 text-center">
+          <p className="text-base sm:text-lg text-gray-300">Cada vez que compartes, nos ayudas a prevenir más fraudes.</p>
         </div>
-        <Button onClick={handleShare} className="w-full bg-green-500 hover:bg-green-600 text-white">
-          Compartir y Continuar
-        </Button>
+        <div className="p-4 sm:p-6">
+          <Button onClick={handleShare} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg text-base sm:text-lg transition-transform transform hover:scale-105">
+            Compartir y Continuar
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
