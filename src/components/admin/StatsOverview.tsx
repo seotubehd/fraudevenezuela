@@ -1,13 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { AdminReport } from "@/lib/services/admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+// The component now receives the pre-calculated stats object.
 interface StatsOverviewProps {
-    reports: AdminReport[];
+    stats: {
+        total: number;
+        pending: number;
+        verified: number;
+        rejected: number;
+        shares: number;
+    } | null; // Stats can be null during initial load.
 }
 
+// The keys here must match the keys in the `stats` object.
 const statCards = [
     { id: "total", title: "Reportes Totales" },
     { id: "pending", title: "Reportes Pendientes" },
@@ -16,34 +22,27 @@ const statCards = [
     { id: "shares", title: "Veces Compartido" },
 ];
 
-export function StatsOverview({ reports }: StatsOverviewProps) {
-    const [shareCount, setShareCount] = useState(0);
-
-    useEffect(() => {
-        const fetchShareCount = async () => {
-            try {
-                const response = await fetch('/api/shares');
-                if (response.ok) {
-                    const data = await response.json();
-                    setShareCount(data.shareCount);
-                } else {
-                    console.error('Failed to fetch share count');
-                }
-            } catch (error) {
-                console.error('Error fetching share count:', error);
-            }
-        };
-
-        fetchShareCount();
-    }, []);
-
-    const counts = {
-        total: reports.length,
-        pending: reports.filter(r => r.status === 'pending').length,
-        verified: reports.filter(r => r.status === 'verified').length,
-        rejected: reports.filter(r => r.status === 'rejected').length,
-        shares: shareCount,
-    };
+export function StatsOverview({ stats }: StatsOverviewProps) {
+    // If stats are not yet available, render a loading state or nothing.
+    if (!stats) {
+        // Render placeholders to prevent layout shift
+        return (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 animate-pulse">
+                {statCards.map(card => (
+                    <Card key={card.id} className="bg-gray-800/80 border-gray-700">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-base font-medium text-gray-400">
+                                {card.title}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="h-10 bg-gray-700 rounded w-1/2 mx-auto"></div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        );
+    }
 
     return (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
@@ -56,7 +55,8 @@ export function StatsOverview({ reports }: StatsOverviewProps) {
                     </CardHeader>
                     <CardContent>
                         <div className="text-4xl font-bold text-white">
-                            {counts[card.id as keyof typeof counts]}
+                            {/* Directly access the pre-calculated count from the stats object */}
+                            {stats[card.id as keyof typeof stats]}
                         </div>
                     </CardContent>
                 </Card>

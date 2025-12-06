@@ -1,22 +1,21 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '@/lib/firebase';
-import { getAdminReports, updateReportsStatus, deleteMultipleReports, AdminReport } from "@/lib/services/admin"; 
+import { getAdminReports, updateReportsStatus, deleteMultipleReports, AdminReport, AdminData } from "@/lib/services/admin"; 
 import { StatsOverview } from "@/components/admin/StatsOverview";
 import { ReportsTable } from "@/components/admin/ReportsTable";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { signOut } from 'firebase/auth';
-import { LayoutGrid, List, Search } from 'lucide-react';
-
+import { LayoutGrid, List, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const withAuth = <P extends object>(Component: React.ComponentType<P>) => {
     const AuthComponent = (props: P) => {
-        const [user, loading, error] = useAuthState(auth);
+        const [user, loading] = useAuthState(auth);
         const router = useRouter();
 
         useEffect(() => {
@@ -38,89 +37,106 @@ const withAuth = <P extends object>(Component: React.ComponentType<P>) => {
     return AuthComponent;
 };
 
-
 function AdminPanel() {
     const [user] = useAuthState(auth); 
     const router = useRouter();
+    
+    // --- State Management ---
     const [reports, setReports] = useState<AdminReport[]>([]);
+    const [stats, setStats] = useState<AdminData['stats'] | null>(null);
     const [initialLoading, setInitialLoading] = useState(true);
+    const [isFetching, setIsFetching] = useState(false);
+    
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
-    const [filter, setFilter] = useState<"all" | AdminReport['status']>('pending');
     const [searchQuery, setSearchQuery] = useState("");
+
+    // --- Pagination & Filtering State ---
+    const [statusFilter, setStatusFilter] = useState('pending');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalReports, setTotalReports] = useState(0);
+    const reportsPerPage = 10;
 
     const getIdToken = useCallback(() => user?.getIdToken(), [user]);
 
-    useEffect(() => {
-        const fetchReports = async () => {
-            try {
-                const token = await getIdToken();
-                const fetchedReports = await getAdminReports(token);
-                setReports(fetchedReports);
-            } catch (err) {
-                console.error("Error fetching reports: ", err);
-                // Optionally, handle auth errors (e.g., by redirecting to login)
-                if (err instanceof Error && (err.message.includes('401') || err.message.includes('403'))) {
-                    router.replace("/login");
-                }
-            } finally {
-                setInitialLoading(false);
+    const fetchAdminData = useCallback(async () => {
+        if (!user) return;
+        setIsFetching(true);
+        try {
+            const token = await getIdToken();
+            if (!token) throw new Error("401: Token not available");
+
+            const data = await getAdminReports(token, currentPage, reportsPerPage, statusFilter);
+            setReports(data.reports || []);
+            setStats(data.stats || null);
+            setTotalReports(data.totalReports || 0);
+
+        } catch (err) {
+            console.error("Error fetching admin data: ", err);
+            if (err instanceof Error && (err.message.startsWith('401') || err.message.startsWith('403'))) {
+                await signOut(auth);
+                router.replace("/login");
             }
-        };
-
-        if (user) {
-            fetchReports();
+        } finally {
+            setInitialLoading(false);
+            setIsFetching(false);
         }
-    }, [user, getIdToken, router]);
+    }, [user, getIdToken, router, currentPage, reportsPerPage, statusFilter]);
 
+    useEffect(() => {
+        fetchAdminData();
+    }, [fetchAdminData]);
+
+    const handleFilterChange = (newStatus: string) => {
+        setCurrentPage(1); // Reset to first page when filter changes
+        setStatusFilter(newStatus);
+    };
 
     const handleReportUpdate = useCallback(async (reportIds: string[], newStatus: AdminReport['status']) => {
         const token = await getIdToken();
+        if (!token) return;
         try {
             await updateReportsStatus(token, reportIds, newStatus);
-            setReports(currentReports =>
-                currentReports.map(report =>
-                    reportIds.includes(report.id) ? { ...report, status: newStatus } : report
-                )
-            );
+            // Refetch data to show changes
+            fetchAdminData();
         } catch (error) {
             console.error("Failed to update report status:", error);
             alert("Error al actualizar el estado del reporte. Verifique su sesión y permisos.");
         }
-    }, [getIdToken]);
+    }, [getIdToken, fetchAdminData]);
 
     const handleReportDelete = useCallback(async (reportIds: string[]) => {
         if (!window.confirm(`¿Está seguro que desea eliminar ${reportIds.length} reporte(s)? Esta acción es irreversible.`)) {
             return;
         }
         const token = await getIdToken();
+        if (!token) return;
         try {
             await deleteMultipleReports(token, reportIds);
-            setReports(currentReports =>
-                currentReports.filter(report => !reportIds.includes(report.id))
-            );
+            // Refetch data, check if the current page becomes empty
+            if (reports.length === reportIds.length && currentPage > 1) {
+                setCurrentPage(currentPage - 1);
+            } else {
+                fetchAdminData();
+            }
         } catch (error) {
             console.error("Failed to delete reports:", error);
             alert("Error al eliminar los reportes. Verifique su sesión y permisos.");
         }
-    }, [getIdToken]);
+    }, [getIdToken, fetchAdminData, reports.length, currentPage]);
 
-
-    const filteredReports = useMemo(() => {
-        return reports
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-            .filter(report => filter === 'all' || report.status === filter)
-            .filter(report => {
-                const query = searchQuery.toLowerCase();
-                const nameMatch = (report.nombreCompleto || '').toLowerCase().includes(query);
-                const cedulaMatch = (report.cedula || '').includes(query);
-                return nameMatch || cedulaMatch;
-            });
-    }, [reports, filter, searchQuery]);
+    const clientSideFilteredReports = reports.filter(report => {
+        const query = searchQuery.toLowerCase();
+        const nameMatch = (report.nombreCompleto || '').toLowerCase().includes(query);
+        const cedulaMatch = (report.cedula || '').includes(query);
+        return nameMatch || cedulaMatch;
+    });
 
     const handleLogout = async () => {
         await signOut(auth);
         router.push('/login');
     };
+
+    const totalPages = Math.ceil(totalReports / reportsPerPage);
 
     if (initialLoading) {
         return (
@@ -141,7 +157,7 @@ function AdminPanel() {
 
             <main className="flex-grow overflow-y-auto">
                 <div className="container mx-auto px-4 py-4">
-                    <StatsOverview reports={reports} />
+                    {stats && <StatsOverview stats={stats} />}
                     
                     <Card className="bg-gray-800/50 border-gray-700 my-4">
                         <CardContent className="p-4 space-y-4">
@@ -151,7 +167,7 @@ function AdminPanel() {
                                     <Input placeholder="Buscar por cédula o nombre..." className="pl-10 w-full bg-gray-900 border-gray-600 text-white" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                                 </div>
                                  <div className="flex items-center gap-1 bg-gray-900/50 p-1 rounded-lg border border-gray-700 self-end sm:self-center">
-                                    <Button size="icon" variant="ghost" onClick={() => setViewMode('grid')} className={`hover:bg-gray-700 ${viewMode === 'grid' ? 'bg-yellow-500 text-black hover:bg-yellow-600' : 'text-gray-400 hover:text-white'}`}>
+                                     <Button size="icon" variant="ghost" onClick={() => setViewMode('grid')} className={`hover:bg-gray-700 ${viewMode === 'grid' ? 'bg-yellow-500 text-black hover:bg-yellow-600' : 'text-gray-400 hover:text-white'}`}>
                                         <LayoutGrid className="h-5 w-5" />
                                     </Button>
                                     <Button size="icon" variant="ghost" onClick={() => setViewMode('list')} className={`hover:bg-gray-700 ${viewMode === 'list' ? 'bg-yellow-500 text-black hover:bg-yellow-600' : 'text-gray-400 hover:text-white'}`}>
@@ -160,19 +176,37 @@ function AdminPanel() {
                                 </div>
                             </div>
                             <div className="flex items-center justify-center gap-2 flex-wrap">
-                                {['all', 'pending', 'verified', 'rejected'].map(status => (
-                                    <Button key={status} size="sm" onClick={() => setFilter(status as any)} className={`capitalize transition-colors duration-200 border ${filter === status ? 'bg-yellow-500 text-black border-yellow-500' : 'bg-gray-900 text-gray-300 border-gray-700 hover:bg-gray-700'}`}>{status}</Button>
+                                {['pending', 'verified', 'rejected'].map(status => (
+                                    <Button key={status} size="sm" onClick={() => handleFilterChange(status)} className={`capitalize transition-colors duration-200 border ${statusFilter === status ? 'bg-yellow-500 text-black border-yellow-500' : 'bg-gray-900 text-gray-300 border-gray-700 hover:bg-gray-700'}`}>{status}</Button>
                                 ))}
                             </div>
                         </CardContent>
                     </Card>
 
-                    <ReportsTable 
-                        reports={filteredReports} 
-                        onReportUpdate={handleReportUpdate} 
-                        onReportDelete={handleReportDelete}
-                        viewMode={viewMode}
-                    />
+                    <div className={`transition-opacity duration-300 ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
+                        <ReportsTable 
+                            reports={clientSideFilteredReports} 
+                            onReportUpdate={handleReportUpdate} 
+                            onReportDelete={handleReportDelete}
+                            viewMode={viewMode}
+                        />
+                    </div>
+
+                    {/* --- PAGINATION CONTROLS --- */}
+                    <div className="flex items-center justify-between py-4 text-sm text-gray-400">
+                        <div>
+                            Mostrando {reports.length} de {totalReports} reportes
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button size="icon" variant="outline" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1 || isFetching}>
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <span>Página {currentPage} de {totalPages > 0 ? totalPages : 1}</span>
+                            <Button size="icon" variant="outline" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage >= totalPages || isFetching}>
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             </main>
         </div>
